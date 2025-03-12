@@ -5,11 +5,10 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import styles from "../styles/ExportButtons.module.css";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Definimos un tipo para el objeto pdfMake que usaremos
 type PdfMakeType = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  vfs: any;
-  createPdf: (docDefinition: any) => { download: (filename: string) => void };
+  vfs: unknown;
+  createPdf: (docDefinition: unknown) => { download: (filename: string) => void };
 };
 
 interface FichajeForExport {
@@ -34,7 +33,7 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
       const pdfMakeModule = await import("pdfmake/build/pdfmake");
       const pdfFontsModule = await import("pdfmake/build/vfs_fonts");
       const pdfMakeObj: PdfMakeType = pdfMakeModule.default || pdfMakeModule;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Usamos "any" para acceder a las propiedades internas del módulo
       const pdfFontsAny = pdfFontsModule as any;
 
       pdfMakeObj.vfs =
@@ -86,8 +85,7 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
       ]);
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const docDefinition: any = {
+    const docDefinition: unknown = {
       content: [
         { text: "Reporte de Fichajes", style: "header" },
         {
