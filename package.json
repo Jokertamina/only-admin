@@ -27,6 +27,7 @@
     "@types/react-dom": "^19",
     "@types/stripe": "^8.0.417",
     "@types/xlsx": "^0.0.36",
+    "@vercel/node": "^5.1.13",
     "eslint": "^9",
     "eslint-config-next": "15.2.2",
     "typescript": "^5"
