@@ -1,123 +1,90 @@
-// src/pages/api/stripe-webhook.ts
-
+// api/stripe-webhook.ts
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
+import { Readable } from 'stream';
 import * as admin from 'firebase-admin';
 
+// 1. Desactiva el body parser para recibir el raw body (Stripe lo necesita así).
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia",
+// 2. Inicializa Stripe con tu secret key (usa la versión que necesites).
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-02-24.acacia',
 });
 
-// Inicializa Firebase Admin si aún no está inicializado
+// 3. Inicializa Firebase Admin (recomendado cargar las credenciales desde variables de entorno).
 if (!admin.apps.length) {
-  try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!serviceAccount) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT no está definido.");
-    }
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(serviceAccount)),
-    });
-    console.log("[Firebase] Inicialización exitosa.");
-  } catch (error) {
-    console.error("[Firebase] Error al inicializar:", error);
-  }
+  admin.initializeApp({
+    credential: admin.credential.cert(
+      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}')
+    ),
+  });
 }
 
-// Función para leer el raw body usando un bucle asíncrono
-async function readRawBody(req: VercelRequest): Promise<Buffer> {
+// 4. Función para leer el body en crudo (sin parsear).
+async function readRawBody(readable: Readable) {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) {
+  for await (const chunk of readable) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks);
 }
 
+// 5. Función principal del webhook
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log("[stripe-webhook] Método recibido:", req.method);
-
-  // Manejo de preflight OPTIONS
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
-    return res.status(200).send("OK");
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).send('Method Not Allowed');
   }
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).send("Method Not Allowed");
-  }
-
+  // Leer el body sin procesar
   const rawBody = await readRawBody(req);
-  const signature = req.headers["stripe-signature"] as string;
+  const signature = req.headers['stripe-signature'] as string;
 
   let event: Stripe.Event;
+
+  // 6. Verificar la firma del webhook
   try {
     event = stripe.webhooks.constructEvent(
       rawBody,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET || ""
+      process.env.STRIPE_WEBHOOK_SECRET || ''
     );
-  } catch (err: unknown) {
-    console.error("[stripe-webhook] Error verificando firma de Stripe:", err);
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return res.status(400).send(`Webhook Error: ${errorMessage}`);
+  } catch (err) {
+    console.error('Error verificando firma de Stripe:', err);
+    return res.status(400).send(`Webhook Error: ${err}`);
   }
 
+  // 7. Manejar diferentes tipos de evento
   try {
     switch (event.type) {
-      case "checkout.session.completed": {
+      case 'checkout.session.completed': {
+        // Extrae la info de la sesión
         const session = event.data.object as Stripe.Checkout.Session;
         const plan = session.metadata?.plan;
         const empresaId = session.metadata?.empresaId;
 
+        // Si hay plan y empresa, actualiza Firestore
         if (plan && empresaId) {
-          let attempts = 0;
-          const maxAttempts = 5;
-          let success = false;
-          let backoffMs = 500;
-
-          while (!success && attempts < maxAttempts) {
-            try {
-              await admin.firestore().collection("Empresas").doc(empresaId).update({ plan });
-              console.log(`[stripe-webhook] Plan actualizado a ${plan} para empresa: ${empresaId}`);
-              success = true;
-            } catch (updateError) {
-              if (
-                updateError instanceof Error &&
-                updateError.message.includes("RESOURCE_EXHAUSTED")
-              ) {
-                attempts++;
-                console.warn(`[stripe-webhook] Reintento ${attempts}/${maxAttempts} tras error de rate limit...`);
-                await new Promise((resolve) => setTimeout(resolve, backoffMs));
-                backoffMs *= 2;
-              } else {
-                throw updateError;
-              }
-            }
-          }
-
-          if (!success) {
-            throw new Error(`No se pudo actualizar el plan tras ${maxAttempts} reintentos.`);
-          }
+          await admin.firestore().collection('Empresas').doc(empresaId).update({ plan });
+          console.log(`Plan actualizado a ${plan} para la empresa ${empresaId}`);
         }
         break;
       }
+      // Agrega más casos según tus necesidades (payment_intent.succeeded, etc.)
       default:
-        console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
+        console.log(`Evento no manejado: ${event.type}`);
         break;
     }
-  } catch (error: unknown) {
-    console.error("[stripe-webhook] Error procesando el evento:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return res.status(400).send(`Event processing error: ${errorMessage}`);
+  } catch (error) {
+    console.error('Error procesando el evento:', error);
+    return res.status(400).send(`Event processing error: ${error}`);
   }
 
-  return res.status(200).send("OK");
+  // 8. Respuesta exitosa a Stripe
+  res.status(200).send('OK');
 }
