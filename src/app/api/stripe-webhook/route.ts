@@ -27,7 +27,6 @@ if (!admin.apps.length) {
   }
 }
 
-
 // Función para leer el raw body
 async function readRawBody(request: NextRequest): Promise<Buffer> {
   return Buffer.from(await request.arrayBuffer());
@@ -74,10 +73,51 @@ export async function POST(request: NextRequest) {
         const empresaId = session.metadata?.empresaId;
 
         if (plan && empresaId) {
-          await admin.firestore().collection("Empresas").doc(empresaId).update({ plan });
-          console.log(
-            `[stripe-webhook] Plan actualizado a ${plan} para empresa: ${empresaId}`
-          );
+          // -----------------------------
+          // Retry con Exponential Backoff
+          // -----------------------------
+          let attempts = 0;
+          const maxAttempts = 5;
+          let success = false;
+          let backoffMs = 500; // tiempo base en ms
+
+          while (!success && attempts < maxAttempts) {
+            try {
+              await admin
+                .firestore()
+                .collection("Empresas")
+                .doc(empresaId)
+                .update({ plan });
+
+              console.log(
+                `[stripe-webhook] Plan actualizado a ${plan} para empresa: ${empresaId}`
+              );
+              success = true;
+            } catch (updateError) {
+              // Si el error es de rate limit, aplicamos retry
+              if (
+                updateError instanceof Error &&
+                updateError.message.includes("RESOURCE_EXHAUSTED")
+              ) {
+                attempts++;
+                console.warn(
+                  `[stripe-webhook] Reintento ${attempts}/${maxAttempts} tras error de rate limit...`
+                );
+                // Esperamos un tiempo antes de reintentar
+                await new Promise((resolve) => setTimeout(resolve, backoffMs));
+                backoffMs *= 2; // duplicamos el tiempo de espera
+              } else {
+                // Error distinto de rate limit => lo lanzamos
+                throw updateError;
+              }
+            }
+          }
+
+          if (!success) {
+            throw new Error(
+              `No se pudo actualizar el plan tras ${maxAttempts} reintentos.`
+            );
+          }
         }
         break;
       }
