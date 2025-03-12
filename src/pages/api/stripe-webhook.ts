@@ -14,25 +14,23 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia",
 });
 
-// Inicializa Firebase Admin si no se ha inicializado ya
+// Inicializa Firebase Admin si aún no está inicializado
 if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!serviceAccount) {
       throw new Error("FIREBASE_SERVICE_ACCOUNT no está definido.");
     }
-
     admin.initializeApp({
       credential: admin.credential.cert(JSON.parse(serviceAccount)),
     });
-
     console.log("[Firebase] Inicialización exitosa.");
   } catch (error) {
     console.error("[Firebase] Error al inicializar:", error);
   }
 }
 
-// Función para leer el raw body (sin parsear)
+// Función para leer el raw body usando un bucle asíncrono
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -80,23 +78,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const empresaId = session.metadata?.empresaId;
 
         if (plan && empresaId) {
-          // Retry con Exponential Backoff
           let attempts = 0;
           const maxAttempts = 5;
           let success = false;
-          let backoffMs = 500; // tiempo base en ms
+          let backoffMs = 500;
 
           while (!success && attempts < maxAttempts) {
             try {
-              await admin
-                .firestore()
-                .collection("Empresas")
-                .doc(empresaId)
-                .update({ plan });
-
-              console.log(
-                `[stripe-webhook] Plan actualizado a ${plan} para empresa: ${empresaId}`
-              );
+              await admin.firestore().collection("Empresas").doc(empresaId).update({ plan });
+              console.log(`[stripe-webhook] Plan actualizado a ${plan} para empresa: ${empresaId}`);
               success = true;
             } catch (updateError) {
               if (
@@ -104,11 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 updateError.message.includes("RESOURCE_EXHAUSTED")
               ) {
                 attempts++;
-                console.warn(
-                  `[stripe-webhook] Reintento ${attempts}/${maxAttempts} tras error de rate limit...`
-                );
+                console.warn(`[stripe-webhook] Reintento ${attempts}/${maxAttempts} tras error de rate limit...`);
                 await new Promise((resolve) => setTimeout(resolve, backoffMs));
-                backoffMs *= 2; // duplicamos el tiempo de espera
+                backoffMs *= 2;
               } else {
                 throw updateError;
               }
@@ -116,9 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
 
           if (!success) {
-            throw new Error(
-              `No se pudo actualizar el plan tras ${maxAttempts} reintentos.`
-            );
+            throw new Error(`No se pudo actualizar el plan tras ${maxAttempts} reintentos.`);
           }
         }
         break;
