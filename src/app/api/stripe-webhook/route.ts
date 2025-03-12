@@ -11,12 +11,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 
 // Inicializa Firebase Admin si no se ha inicializado ya
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(
-      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}")
-    ),
-  });
+  try {
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccount) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT no está definido.");
+    }
+
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(serviceAccount)),
+    });
+
+    console.log("[Firebase] Inicialización exitosa.");
+  } catch (error) {
+    console.error("[Firebase] Error al inicializar:", error);
+  }
 }
+
 
 // Función para leer el raw body
 async function readRawBody(request: NextRequest): Promise<Buffer> {
