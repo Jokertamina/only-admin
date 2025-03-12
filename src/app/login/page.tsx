@@ -1,11 +1,11 @@
-"use client"; // Necesario para componentes que usan hooks en Next.js 13
+"use client"; // Necesario para usar hooks en Next.js 13
 
 import { useState } from "react";
 import { auth } from "../../lib/firebaseConfig";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import styles from "../styles/LoginPage.module.css"; // Importamos el CSS Module
+import styles from "../styles/LoginPage.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,8 +19,9 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/admin");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
     }
   };
 

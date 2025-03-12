@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   let body;
   try {
     body = await request.json();
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json("Invalid JSON", { status: 400 });
   }
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[stripe-create] Sesión creada:", session.id);
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });
   }

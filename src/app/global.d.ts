@@ -1,5 +1,4 @@
-// src/golbal.d.ts
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module "pdfmake/build/pdfmake" {
   const pdfMake: any;
   export default pdfMake;

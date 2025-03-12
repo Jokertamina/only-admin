@@ -50,9 +50,10 @@ export async function POST(request: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET || ""
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[stripe-webhook] Error verificando firma de Stripe:", err);
-    return NextResponse.json({ error: err.message || err }, { status: 400 });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 
   try {
@@ -63,11 +64,7 @@ export async function POST(request: NextRequest) {
         const empresaId = session.metadata?.empresaId;
 
         if (plan && empresaId) {
-          await admin
-            .firestore()
-            .collection("Empresas")
-            .doc(empresaId)
-            .update({ plan });
+          await admin.firestore().collection("Empresas").doc(empresaId).update({ plan });
           console.log(
             `[stripe-webhook] Plan actualizado a ${plan} para empresa: ${empresaId}`
           );
@@ -78,9 +75,10 @@ export async function POST(request: NextRequest) {
         console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
         break;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[stripe-webhook] Error procesando el evento:", error);
-    return NextResponse.json({ error: error.message || error }, { status: 400 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 
   return NextResponse.json("OK", { status: 200 });
