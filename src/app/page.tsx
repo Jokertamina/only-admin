@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import styles from "./styles/HomePage.module.css"; // Importa el CSS como módulo
 
 export default function Home() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -21,7 +21,7 @@ export default function Home() {
     if (user) {
       router.push("/admin"); // Redirige a /admin si está autenticado
     } else {
-      router.push("/login"); // Redirige a /auth/login si no está autenticado
+      router.push("/login"); // Redirige a /login si no está autenticado
     }
   };
 

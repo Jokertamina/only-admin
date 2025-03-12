@@ -1,8 +1,15 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-// Importación del CSS como módulo
 import styles from "../styles/ExportButtons.module.css";
+
+// Definimos un tipo para el objeto pdfMake que usaremos
+type PdfMakeType = {
+  vfs: any;
+  createPdf: (docDefinition: any) => { download: (filename: string) => void };
+};
 
 interface FichajeForExport {
   id: string;
@@ -19,13 +26,14 @@ interface ExportButtonsProps {
 }
 
 export default function ExportButtons({ fichajes }: ExportButtonsProps) {
-  const [pdfMake, setPdfMake] = useState<any>(null);
+  const [pdfMake, setPdfMake] = useState<PdfMakeType | null>(null);
 
   useEffect(() => {
     async function loadPdfMake() {
       const pdfMakeModule = await import("pdfmake/build/pdfmake");
       const pdfFontsModule = await import("pdfmake/build/vfs_fonts");
-      const pdfMakeObj = pdfMakeModule.default || pdfMakeModule;
+      const pdfMakeObj: PdfMakeType = pdfMakeModule.default || pdfMakeModule;
+      // Forzamos el cast a any solo para acceder a la propiedad de las fuentes
       const pdfFontsAny = pdfFontsModule as any;
 
       pdfMakeObj.vfs =
