@@ -8,7 +8,7 @@ import styles from "../styles/ExportButtons.module.css";
 // Definimos un tipo para el objeto pdfMake que usaremos
 type PdfMakeType = {
   vfs: unknown;
-  createPdf: (docDefinition: unknown) => { download: (filename: string) => void };
+  createPdf: (docDefinition: Record<string, unknown>) => { download: (filename: string) => void };
 };
 
 interface FichajeForExport {
@@ -37,13 +37,13 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
       // Asumimos que pdfMakeModule podría ser { default: PdfMakeType } o PdfMakeType directamente
       const pdfMakeObj = (pdfMakeModule.default ?? pdfMakeModule) as PdfMakeType;
 
-      // Para acceder a las propiedades internas de pdfFontsModule, forzamos un cast a unknown y lo convertimos en un objeto
+      // Convertimos pdfFontsModule a un objeto con tipado más seguro
       const pdfFontsUnknown = pdfFontsModule as unknown;
-      // Convertimos a Record<string, any> para poder acceder a .default y .pdfMake sin que ESLint se queje
-      const pdfFontsRecord = pdfFontsUnknown as Record<string, any>;
+      const pdfFontsRecord: Record<string, unknown> = pdfFontsUnknown as Record<string, unknown>;
 
       pdfMakeObj.vfs =
-        pdfFontsRecord.default?.pdfMake?.vfs || pdfFontsRecord.pdfMake?.vfs;
+        (pdfFontsRecord.default as { pdfMake?: { vfs?: unknown } })?.pdfMake?.vfs ||
+        (pdfFontsRecord.pdfMake as { vfs?: unknown })?.vfs;
 
       setPdfMake(pdfMakeObj);
     }
@@ -91,7 +91,7 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
       ]);
     });
 
-    // Definimos docDefinition como Record<string, unknown> en lugar de any
+    // Definimos docDefinition con un tipado más seguro
     const docDefinition: Record<string, unknown> = {
       content: [
         { text: "Reporte de Fichajes", style: "header" },
