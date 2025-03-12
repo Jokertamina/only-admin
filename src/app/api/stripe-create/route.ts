@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      success_url: `https://fichajes-nu.vercel.app/payment-success`,
-      cancel_url: `https://fichajes-nu.vercel.app/payment-cancel`,
+      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
       line_items: [
         {
           price:
