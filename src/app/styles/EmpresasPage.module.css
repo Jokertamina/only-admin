@@ -1,0 +1,221 @@
+/* EmpresasPage.module.css - Diseño avanzado y responsive */
+
+/* Contenedor principal */
+.empresas-container {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background: var(--gradient-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empresas-title {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  color: var(--color-text-main);
+  text-align: center;
+  width: 100%;
+}
+
+/* Mensaje de carga */
+.empresas-loading {
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin-top: 2rem;
+}
+
+/* Sección de formulario */
+.empresas-form {
+  background-color: var(--color-alt-bg);
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 2rem; /* Espacio extra al final */
+}
+
+/* Grupo de inputs */
+.empresas-input-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.empresas-label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-secondary);
+}
+
+.empresas-input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.empresas-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
+}
+
+/* Información adicional */
+.empresas-info {
+  margin: 1rem 0;
+}
+
+.empresas-info-text {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+}
+
+/* Botones */
+.empresas-btn-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.empresas-btn-save,
+.empresas-btn-cancel,
+.empresas-btn-edit,
+.empresas-btn-register {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+  margin-top: 1rem; /* Un poco de espacio arriba para no pegar al form */
+}
+
+/* Botón Guardar */
+.empresas-btn-save {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+.empresas-btn-save:hover {
+  background-color: var(--color-secondary);
+}
+
+/* Botón Cancelar */
+.empresas-btn-cancel {
+  background-color: #ccc;
+  color: #fff;
+}
+.empresas-btn-cancel:hover {
+  background-color: #bbb;
+}
+
+/* Botón Editar */
+.empresas-btn-edit-container {
+  text-align: center;
+}
+.empresas-btn-edit {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+.empresas-btn-edit:hover {
+  background-color: var(--color-secondary);
+}
+
+/* Botón Registrar (escenario: no hay empresa) */
+.empresas-btn-register {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+.empresas-btn-register:hover {
+  background-color: var(--color-secondary);
+}
+
+/* Sección de visualización (modo lectura) */
+.empresas-info-container {
+  background-color: var(--color-alt-bg);
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+  max-width: 800px;
+}
+
+/* Tabla responsiva */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.empresas-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; /* Asegura scroll si el contenedor es muy pequeño */
+}
+
+.empresas-table th,
+.empresas-table td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.empresas-table th {
+  background-color: var(--color-primary);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.empresas-table tr:nth-child(even) {
+  background-color: var(--color-alt-bg);
+}
+
+/* Breakpoints */
+/* Escritorio grande (hasta 1024px) */
+@media (max-width: 1024px) {
+  .empresas-title {
+    font-size: 1.8rem;
+  }
+  .empresas-table th,
+  .empresas-table td {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+}
+
+/* Tablet y pantallas medianas (hasta 768px) */
+@media (max-width: 768px) {
+  .empresas-form,
+  .empresas-info-container {
+    padding: 1.5rem;
+  }
+  .empresas-title {
+    font-size: 1.6rem;
+    margin-bottom: 1.5rem;
+  }
+  .empresas-btn-save,
+  .empresas-btn-cancel,
+  .empresas-btn-edit,
+  .empresas-btn-register {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Móviles (hasta 480px) */
+@media (max-width: 480px) {
+  .empresas-title {
+    font-size: 1.4rem;
+  }
+  .empresas-input {
+    font-size: 0.9rem;
+  }
+  .empresas-table th,
+  .empresas-table td {
+    font-size: 0.8rem;
+  }
+}

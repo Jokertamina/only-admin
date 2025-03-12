@@ -1,0 +1,196 @@
+/* EmpleadosPage.css - Versión Mejorada y Responsive */
+
+.empleados-container {
+  padding: 1rem;
+  background: var(--gradient-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empleados-title {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+  color: var(--color-text-main);
+  width: 100%;
+}
+
+/* Formulario de creación/edición */
+.empleados-form {
+  background-color: var(--color-alt-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 2rem;
+}
+
+/* Grupo de inputs con grid para mayor flexibilidad */
+.empleados-input-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.empleados-input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.empleados-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
+}
+
+/* Botones generales */
+.empleados-btn-create,
+.empleados-btn-save,
+.empleados-btn-cancel,
+.empleados-btn-edit,
+.empleados-btn-delete {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Botón de creación */
+.empleados-btn-create {
+  background-color: var(--color-primary);
+  color: #fff;
+  display: block;
+  margin: 0 auto;
+}
+.empleados-btn-create:hover {
+  background-color: var(--color-secondary);
+}
+
+/* Botones de edición */
+.empleados-btn-save {
+  background-color: var(--color-primary);
+  color: #fff;
+  margin-right: 1rem;
+}
+.empleados-btn-save:hover {
+  background-color: var(--color-secondary);
+}
+
+.empleados-btn-cancel {
+  background-color: #ccc;
+  color: #fff;
+}
+.empleados-btn-cancel:hover {
+  background-color: #bbb;
+}
+
+.empleados-btn-edit {
+  background-color: var(--color-accent);
+  color: #fff;
+  margin-right: 0.5rem;
+}
+.empleados-btn-edit:hover {
+  background-color: var(--color-secondary);
+}
+
+.empleados-btn-delete {
+  background-color: var(--color-danger);
+  color: #fff;
+}
+.empleados-btn-delete:hover {
+  background-color: #b04462;
+}
+
+/* Grupo de botones en modo edición */
+.empleados-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Contenedor responsivo para la tabla */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 2rem;
+}
+
+.empleados-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.empleados-table th,
+.empleados-table td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.empleados-table th {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+.empleados-row:nth-child(even) {
+  background-color: var(--color-alt-bg);
+}
+
+/* Mensaje de carga */
+.empleados-loading {
+  text-align: center;
+  font-size: 1.2rem;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+/* Breakpoints para diferentes dispositivos */
+
+/* Dispositivos grandes y escritorio */
+@media (max-width: 1024px) {
+  .empleados-form {
+    padding: 1.5rem;
+  }
+  .empleados-title {
+    font-size: 1.8rem;
+  }
+}
+
+/* Dispositivos medianos */
+@media (max-width: 768px) {
+  .empleados-input-group {
+    grid-template-columns: 1fr;
+  }
+  .empleados-table th,
+  .empleados-table td {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+}
+
+/* Dispositivos pequeños */
+@media (max-width: 480px) {
+  .empleados-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .empleados-btn-create,
+  .empleados-btn-save,
+  .empleados-btn-cancel,
+  .empleados-btn-edit,
+  .empleados-btn-delete {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+}

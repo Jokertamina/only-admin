@@ -1,0 +1,110 @@
+/* src/styles/PricingCard.module.css */
+
+/* Contenedor que muestra las tarjetas centradas */
+.pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;         /* Centra el grid en la página */
+  justify-items: center;  /* Centra las tarjetas dentro de cada "celda" del grid */
+}
+
+/* Estilo de cada tarjeta */
+.pricing-card {
+  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  max-width: 320px;       /* Ancho máximo de la tarjeta */
+  width: 100%;            /* Se ajusta al ancho disponible en el grid */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Gradiente suave en hover */
+.pricing-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, transparent 0%, rgba(123, 97, 255, 0.05) 100%);
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pricing-card:hover::before {
+  opacity: 1;
+}
+
+.pricing-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Título del plan */
+.card-plan {
+  font-size: 2rem;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+  position: relative;
+  z-index: 1; /* Para que quede por encima del pseudo-elemento */
+}
+
+/* Precio */
+.card-price {
+  font-size: 1.75rem;
+  color: var(--color-text-main);
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Lista de características */
+.card-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+.card-feature {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.card-feature:last-child {
+  border-bottom: none;
+}
+
+/* Botón de acción */
+.card-button {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.card-button:hover {
+  background: var(--color-secondary);
+  transform: scale(1.05);
+}

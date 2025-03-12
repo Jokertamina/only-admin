@@ -1,0 +1,44 @@
+/* AdminPage.css */
+.admin-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding: 2rem;
+  background-color: var(--color-base-bg);
+  text-align: center;
+}
+
+.admin-page-title {
+  font-size: 2.5rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.admin-page-welcome {
+  font-size: 1.2rem;
+  color: var(--color-text-main);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-page-title {
+    font-size: 2rem;
+  }
+  .admin-page-welcome {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-page-container {
+    padding: 1rem;
+  }
+  .admin-page-title {
+    font-size: 1.8rem;
+  }
+  .admin-page-welcome {
+    font-size: 0.9rem;
+  }
+}

@@ -1,0 +1,33 @@
+/* AdminLayout.css - Diseño profesional y responsive */
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.admin-sidebar {
+  background-color: var(--color-alt-bg);
+  padding: 1rem;
+  border-right: 1px solid #ddd;
+}
+
+/* Contenido principal */
+.admin-content {
+  background-color: var(--color-base-bg);
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+/* Responsive: En pantallas medianas y pequeñas, el sidebar se ubica arriba */
+@media (max-width: 768px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .admin-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+}

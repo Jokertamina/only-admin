@@ -1,0 +1,47 @@
+/* src/app/styles/PricingPage.module.css */
+
+/* 
+   1) Aseguramos que el contenedor tenga un ancho máximo y se centre con margin: 0 auto.
+   2) Definimos display: flex + flex-direction: column para centrar mejor el contenido vertical.
+*/
+.pricing-container {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background: var(--gradient-bg);
+  text-align: center;
+  
+  /* Clave para centrar horizontalmente la sección */
+  max-width: 1200px;
+  margin: 0 auto;
+
+  /* Opcional: si quieres centrar verticalmente, podrías usar flexbox:
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  */
+}
+
+.pricing-title {
+  font-size: 3rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+  font-weight: bold;
+  margin-top: 0;
+}
+
+.pricing-description {
+  font-size: 1.5rem;
+  color: var(--color-text-main);
+  margin-bottom: 3rem;
+}
+
+/* 
+   .pricing-cards ocupa todo el ancho del contenedor 
+   y reparte las tarjetas en columnas. 
+*/
+.pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+}
+

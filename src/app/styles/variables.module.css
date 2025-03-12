@@ -1,0 +1,20 @@
+:root {
+  /* Colores base */
+  --color-base-bg: #eef2f7;  /* Azul grisáceo claro */
+  --color-alt-bg: #e1e8ed;   /* Fondo alternativo para secciones */
+
+  /* Tipografía */
+  --color-text-main: #2b2e3d;
+  --color-text-secondary: #6c7383;
+
+  /* Colores primarios */
+  --color-primary: #7B61FF;   /* Púrpura vibrante */
+  --color-secondary: #FF6B81; /* Rosa fresco y atrevido */
+
+  /* Acentos y alertas */
+  --color-accent: #00bcd4;    /* Teal para acentos */
+  --color-danger: #d45d79;
+
+  /* Gradientes */
+  --gradient-bg: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+}

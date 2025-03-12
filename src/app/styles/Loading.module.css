@@ -1,0 +1,44 @@
+/* Loading.css */
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: 1rem;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(0, 0, 0, 0.1);
+  border-top: 5px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  font-size: 1.2rem;
+  color: var(--color-text-main);
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border-width: 4px;
+  }
+  .loading-text {
+    font-size: 1rem;
+  }
+}

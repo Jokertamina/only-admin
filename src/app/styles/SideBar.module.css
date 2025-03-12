@@ -1,0 +1,47 @@
+/* SideBar.css - Estilos avanzados y responsive */
+
+.sidebar {
+  background-color: var(--color-alt-bg);
+  height: 100%;
+  padding: 2rem 1rem;
+  box-shadow: inset -1px 0 0 #ddd; /* Línea sutil en el lateral */
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sidebar-link {
+  display: block;
+  text-decoration: none;
+  color: var(--color-text-main);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.sidebar-link:hover {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+/* Opcional: estilo para resaltar la ruta activa
+.sidebar-link-active {
+  background-color: var(--color-secondary);
+  color: #fff;
+}
+*/
+
+/* Ajustes para pantallas más pequeñas */
+@media (max-width: 768px) {
+  .sidebar {
+    padding: 1rem;
+  }
+  .sidebar-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+}

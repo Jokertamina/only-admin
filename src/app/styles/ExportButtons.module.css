@@ -1,0 +1,46 @@
+/* src/styles/ExportButtons.css */
+
+.export-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+/* Botón base */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Botón Excel */
+.btn-excel {
+  background-color: #2ecc71;
+  color: #fff;
+}
+.btn-excel:hover {
+  background-color: #27ae60;
+}
+
+/* Botón PDF */
+.btn-pdf {
+  background-color: #e74c3c;
+  color: #fff;
+}
+.btn-pdf:hover {
+  background-color: #c0392b;
+}
+
+/* Responsive: Ajuste para móviles */
+@media (max-width: 480px) {
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
