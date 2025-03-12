@@ -30,14 +30,20 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
 
   useEffect(() => {
     async function loadPdfMake() {
+      // Importamos dinámicamente los módulos
       const pdfMakeModule = await import("pdfmake/build/pdfmake");
       const pdfFontsModule = await import("pdfmake/build/vfs_fonts");
-      const pdfMakeObj: PdfMakeType = pdfMakeModule.default || pdfMakeModule;
-      // Usamos "any" para acceder a las propiedades internas del módulo
-      const pdfFontsAny = pdfFontsModule as any;
+
+      // Asumimos que pdfMakeModule podría ser { default: PdfMakeType } o PdfMakeType directamente
+      const pdfMakeObj = (pdfMakeModule.default ?? pdfMakeModule) as PdfMakeType;
+
+      // Para acceder a las propiedades internas de pdfFontsModule, forzamos un cast a unknown y lo convertimos en un objeto
+      const pdfFontsUnknown = pdfFontsModule as unknown;
+      // Convertimos a Record<string, any> para poder acceder a .default y .pdfMake sin que ESLint se queje
+      const pdfFontsRecord = pdfFontsUnknown as Record<string, any>;
 
       pdfMakeObj.vfs =
-        pdfFontsAny.default?.pdfMake?.vfs || pdfFontsAny.pdfMake?.vfs;
+        pdfFontsRecord.default?.pdfMake?.vfs || pdfFontsRecord.pdfMake?.vfs;
 
       setPdfMake(pdfMakeObj);
     }
@@ -85,7 +91,8 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
       ]);
     });
 
-    const docDefinition: unknown = {
+    // Definimos docDefinition como Record<string, unknown> en lugar de any
+    const docDefinition: Record<string, unknown> = {
       content: [
         { text: "Reporte de Fichajes", style: "header" },
         {
