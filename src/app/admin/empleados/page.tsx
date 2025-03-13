@@ -117,6 +117,11 @@ export default function EmpleadosPage() {
   return (
     <main className={styles["empleados-container"]}>
       <h1 className={styles["empleados-title"]}>Empleados</h1>
+      <p className={styles["empleados-description"]}>
+  Registra tus empleados, para que el bot los reconozca a la hora de fichar.<br />
+  <span style={{ color: "red", fontWeight: "bold" }}>RECUERDA</span> que es muy <span style={{ color: "red", fontWeight: "bold" }}>IMPORTANTE</span> que tanto el nombre, como ambos apellidos comiencen con mayúsculas.
+</p>
+
 
       {/* Formulario para creación o edición */}
       {!editMode ? (
@@ -222,7 +227,6 @@ export default function EmpleadosPage() {
         <table className={styles["empleados-table"]}>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Nombre</th>
               <th>Primer Apellido</th>
               <th>Segundo Apellido</th>
@@ -232,7 +236,6 @@ export default function EmpleadosPage() {
           <tbody>
             {empleados.map((emp) => (
               <tr key={emp.id} className={styles["empleados-row"]}>
-                <td>{emp.id}</td>
                 <td>{emp.nombre}</td>
                 <td>{emp.primerApellido}</td>
                 <td>{emp.segundoApellido}</td>

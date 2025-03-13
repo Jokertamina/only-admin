@@ -18,6 +18,13 @@
   width: 100%;
 }
 
+.obras-description {
+  margin: 10px 0 50px 0;
+  color: var(--color-primary);
+  text-align: center;
+  font-weight: bold;
+}
+
 /* Formulario de creación/edición */
 .obras-form {
   background-color: var(--color-alt-bg);

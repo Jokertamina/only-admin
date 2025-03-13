@@ -176,7 +176,6 @@ export default function FichajesPage() {
         <table className={styles["fichajes-table"]}>
           <thead>
             <tr className={styles["fichajes-table-head-row"]}>
-              <th className={styles["fichajes-table-head"]}>ID</th>
               <th className={styles["fichajes-table-head"]}>Empleado</th>
               <th className={styles["fichajes-table-head"]}>Obra</th>
               <th className={styles["fichajes-table-head"]}>Entrada</th>
@@ -187,7 +186,6 @@ export default function FichajesPage() {
           <tbody>
             {sortedFichajes.map((f) => (
               <tr key={f.id} className={styles["fichajes-table-row"]}>
-                <td className={styles["fichajes-table-cell"]}>{f.id}</td>
                 <td className={styles["fichajes-table-cell"]}>{f.fullName}</td>
                 <td className={styles["fichajes-table-cell"]}>{f.obra}</td>
                 <td className={styles["fichajes-table-cell"]}>

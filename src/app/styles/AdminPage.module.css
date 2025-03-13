@@ -1,9 +1,8 @@
-/* AdminPage.css */
+/* AdminPage.modulecss */
 .admin-page-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 80vh;
   padding: 2rem;
   background-color: var(--color-base-bg);
@@ -14,11 +13,46 @@
   font-size: 2.5rem;
   color: var(--color-primary);
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .admin-page-welcome {
   font-size: 1.2rem;
   color: var(--color-text-main);
+  text-align: center;
+}
+
+ /* Añade al final de tu archivo AdminPage.module.css */
+
+ .admin-page-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: var(--color-alt-bg);
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: left;
+  width: 100%;
+  max-width: 800px;
+}
+
+.admin-page-subtitle {
+  font-size: 1.8rem;
+  color: var(--color-danger);
+  margin-bottom: 1rem;
+  margin-top: 60px;
+}
+
+.admin-page-list {
+  list-style: disc inside;
+  font-size: 1rem;
+  color: var(--color-text-main);
+  margin-bottom: 1rem;
+}
+
+.admin-page-description {
+  font-size: 1rem;
+  color: var(--color-text-main);
+  margin-top: 40px;
 }
 
 /* Responsive adjustments */
@@ -41,4 +75,6 @@
   .admin-page-welcome {
     font-size: 0.9rem;
   }
+
+
 }

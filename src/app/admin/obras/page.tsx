@@ -106,6 +106,10 @@ export default function ObrasPage() {
   return (
     <main className={styles["obras-container"]}>
       <h1 className={styles["obras-title"]}>Obras</h1>
+      <p className={styles["obras-description"]}>
+          Agrega tus obras activas, para que los empleados puedan visualizarlas,
+          desde el bot de fichajes.
+        </p>
 
       { !editMode ? (
         <section className={styles["obras-form"]}>
@@ -150,8 +154,6 @@ export default function ObrasPage() {
         <table className={styles["obras-table"]}>
           <thead>
             <tr className={styles["obras-table-head-row"]}>
-              <th className={styles["obras-table-head"]}>ID</th>
-              <th className={styles["obras-table-head"]}>EmpresaID</th>
               <th className={styles["obras-table-head"]}>Nombre</th>
               <th className={styles["obras-table-head"]}>Total Horas</th>
               <th className={styles["obras-table-head"]}>Acciones</th>
@@ -160,8 +162,6 @@ export default function ObrasPage() {
           <tbody>
             {obras.map((obra) => (
               <tr key={obra.id} className={styles["obras-table-row"]}>
-                <td className={styles["obras-table-cell"]}>{obra.id}</td>
-                <td className={styles["obras-table-cell"]}>{obra.empresaId}</td>
                 <td className={styles["obras-table-cell"]}>{obra.nombre}</td>
                 <td className={styles["obras-table-cell"]}>{obra.totalHoras || 0}</td>
                 <td className={styles["obras-table-cell"]}>

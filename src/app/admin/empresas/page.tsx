@@ -307,7 +307,6 @@ export default function EmpresasPage() {
             <table className={styles["empresas-table"]}>
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Nombre</th>
                   <th>Domicilio</th>
                   <th>NIF</th>
@@ -317,7 +316,6 @@ export default function EmpresasPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td>{empresa.id}</td>
                   <td>{empresa.nombre}</td>
                   <td>{empresa.domicilio || "N/A"}</td>
                   <td>{empresa.nif || "N/A"}</td>
