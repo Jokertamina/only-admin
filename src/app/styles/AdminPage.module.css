@@ -55,6 +55,117 @@
   margin-top: 40px;
 }
 
+/* Sección para compartir el bot */
+.admin-page-share {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: var(--color-alt-bg);
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
+}
+
+.admin-page-share-title {
+  font-size: 1.8rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+
+
+.admin-page-share-trigger:hover {
+  background-color: var(--color-secondary);
+}
+
+.admin-page-share-trigger{
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Estilos para el modal de compartir */
+.share-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.share-modal {
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 10px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+}
+
+.share-modal-title {
+  font-size: 1.8rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.share-modal-description {
+  font-size: 1rem;
+  color: var(--color-text-main);
+  margin-bottom: 1.5rem;
+}
+
+.share-modal-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.share-button {
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.share-button:hover {
+  background-color: var(--color-secondary);
+}
+
+.share-modal-close {
+  background-color: #ccc;
+  color: #333;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.share-modal-close:hover {
+  background-color: #bbb;
+}
+
+
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .admin-page-title {
