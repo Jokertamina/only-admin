@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Solo usuarios autenticados pueden leer o escribir en cualquier documento
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Reglas para la colección Empresas
+    match /Empresas/{empresaId} {
+      // Cualquier usuario autenticado puede leer
+      allow read: if request.auth != null;
+      // La creación la puede hacer cualquier usuario autenticado
+      allow create: if request.auth != null;
+      // Solo el usuario que pertenezca a la empresa (según el documento Users) puede actualizar o eliminar
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.empresaId == empresaId;
+    }
+    
+    // Reglas para la colección Empleados
+    match /Empleados/{empleadoId} {
+      // Permitir lectura a usuarios autenticados
+      allow read: if request.auth != null;
+      // Permitir creación a usuarios autenticados
+      allow create: if request.auth != null;
+      // Solo permitir actualizar o eliminar si el usuario pertenece a la misma empresa
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.empresaId == resource.data.empresaId;
+    }
+    
+    // Reglas para la colección Fichajes
+    match /Fichajes/{fichajeId} {
+      // Permitir leer solo fichajes de la empresa del usuario
+      allow read: if request.auth != null &&
+        get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.empresaId == resource.data.empresaId;
+      // Permitir crear fichajes solo si se envía la empresa correcta
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.empresaId == request.resource.data.empresaId;
+    }
+    
+    // Reglas para la colección Users: solo el propio usuario puede leer y escribir su documento
+    match /Users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

@@ -242,6 +242,9 @@ export default function EmpresasPage() {
   return (
     <main className={styles["empresas-container"]}>
       <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
+      <p className={styles["empresa-description"]}>
+        Consulta la información sobre tu empresa.
+      </p>
       {editMode ? (
         <section className={styles["empresas-form"]}>
           <div className={styles["empresas-input-group"]}>

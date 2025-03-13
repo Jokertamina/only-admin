@@ -134,7 +134,7 @@ const AdminPage = () => {
       </section>
       {/* Sección para compartir el enlace del bot */}
       <section className={styles["admin-page-share"]}>
-        <h3 className={styles["admin-page-share-title"]}>Comparte nuestro Bot</h3>
+        <h3 className={styles["admin-page-share-title"]}>Bot para enviar a tus empleados</h3>
         <button
           onClick={() => setShowShareModal(true)}
           className={styles["admin-page-share-trigger"]}

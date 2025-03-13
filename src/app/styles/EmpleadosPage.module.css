@@ -1,4 +1,4 @@
-/* EmpleadosPage.css - Versión Mejorada y Responsive */
+/* EmpleadosPage.module.css - Versión Mejorada y Responsive */
 
 .empleados-container {
   padding: 1rem;
@@ -24,6 +24,17 @@
   font-weight: bold;
 }
 
+/* Banner de ajuste de empleados */
+.ajuste-banner {
+  background-color: #f8d7da; /* Rojo clarito */
+  border: 1px solid #f5c6cb; /* Borde a juego */
+  color: #721c24;            /* Texto rojo oscuro */
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
 /* Formulario de creación/edición */
 .empleados-form {
   background-color: var(--color-alt-bg);
@@ -35,7 +46,7 @@
   margin-bottom: 2rem;
 }
 
-/* Grupo de inputs con grid para mayor flexibilidad */
+/* Grupo de inputs con grid */
 .empleados-input-group {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -117,15 +128,6 @@
   background-color: #b04462;
 }
 
-/* Grupo de botones en modo edición */
-.empleados-btn-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 /* Contenedor responsivo para la tabla */
 .table-responsive {
   width: 100%;
@@ -152,6 +154,12 @@
 
 .empleados-row:nth-child(even) {
   background-color: var(--color-alt-bg);
+}
+
+/* Fila inactiva */
+.empleados-row-inactive {
+  background-color: #da787877;
+  opacity: 0.7;
 }
 
 /* Mensaje de carga */

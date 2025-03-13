@@ -1,5 +1,3 @@
-// src/admin/empleados/page.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,8 +11,10 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  serverTimestamp,
+  getDoc,
 } from "firebase/firestore";
-import styles from "../../styles/EmpleadosPage.module.css"; // Importamos como módulo
+import styles from "../../styles/EmpleadosPage.module.css";
 
 interface Empleado {
   id?: string;
@@ -22,6 +22,16 @@ interface Empleado {
   primerApellido: string;
   segundoApellido: string;
   empresaId: string;
+  active?: boolean;
+  createdAt?: any;
+}
+
+// Interfaz opcional para el resumen de ajuste
+interface LastAdjustmentInfo {
+  inactivated: number;
+  total: number;
+  plan: string;
+  timestamp: string;
 }
 
 export default function EmpleadosPage() {
@@ -36,6 +46,9 @@ export default function EmpleadosPage() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Guardamos aquí los datos de la empresa (incluyendo lastAdjustmentInfo)
+  const [empresaData, setEmpresaData] = useState<any>(null);
+
   useEffect(() => {
     async function fetchEmpresaIdYEmpleados() {
       const currentUser = auth.currentUser;
@@ -43,13 +56,24 @@ export default function EmpleadosPage() {
         setLoading(false);
         return;
       }
+      // 1) Buscamos la empresaId del usuario
       const usersRef = collection(db, "Users");
-      const q = query(usersRef, where("uid", "==", currentUser.uid));
-      const usersSnap = await getDocs(q);
+      const qUser = query(usersRef, where("uid", "==", currentUser.uid));
+      const usersSnap = await getDocs(qUser);
+
       if (!usersSnap.empty) {
         const userDoc = usersSnap.docs[0].data();
         const miEmpresaId = userDoc.empresaId as string;
         setEmpresaId(miEmpresaId);
+
+        // 2) Cargamos la empresa (para ver lastAdjustmentInfo y plan, etc.)
+        const empresaRef = doc(db, "Empresas", miEmpresaId);
+        const empresaSnap = await getDoc(empresaRef);
+        if (empresaSnap.exists()) {
+          setEmpresaData(empresaSnap.data());
+        }
+
+        // 3) Cargamos los empleados
         await fetchEmpleados(miEmpresaId);
       }
       setLoading(false);
@@ -68,38 +92,42 @@ export default function EmpleadosPage() {
     setEmpleados(temp);
   }
 
+  // Crea un nuevo empleado (siempre con active: true)
   async function handleCreate() {
     if (!empresaId) return;
-    if (
-      !newEmpleado.nombre ||
-      !newEmpleado.primerApellido ||
-      !newEmpleado.segundoApellido
-    ) {
+    if (!newEmpleado.nombre || !newEmpleado.primerApellido || !newEmpleado.segundoApellido) {
       return;
     }
+
     await addDoc(collection(db, "Empleados"), {
-      nombre: newEmpleado.nombre,
-      primerApellido: newEmpleado.primerApellido,
-      segundoApellido: newEmpleado.segundoApellido,
+      nombre: newEmpleado.nombre.trim().toLowerCase(),
+      primerApellido: newEmpleado.primerApellido.trim().toLowerCase(),
+      segundoApellido: newEmpleado.segundoApellido.trim().toLowerCase(),
       empresaId,
+      active: true,
+      createdAt: serverTimestamp()
     });
+
     setNewEmpleado({ nombre: "", primerApellido: "", segundoApellido: "" });
     fetchEmpleados(empresaId);
   }
 
+  // Actualiza un empleado
   async function handleUpdate() {
     if (!editingEmpleado?.id || !empresaId) return;
     const ref = doc(db, "Empleados", editingEmpleado.id);
+
     await updateDoc(ref, {
-      nombre: editingEmpleado.nombre,
-      primerApellido: editingEmpleado.primerApellido,
-      segundoApellido: editingEmpleado.segundoApellido,
+      nombre: editingEmpleado.nombre.trim().toLowerCase(),
+      primerApellido: editingEmpleado.primerApellido.trim().toLowerCase(),
+      segundoApellido: editingEmpleado.segundoApellido.trim().toLowerCase(),
     });
     setEditMode(false);
     setEditingEmpleado(null);
     fetchEmpleados(empresaId);
   }
 
+  // Elimina un empleado definitivamente
   async function handleDelete(id: string | undefined) {
     if (!id || !empresaId) return;
     const ref = doc(db, "Empleados", id);
@@ -111,19 +139,35 @@ export default function EmpleadosPage() {
     return <p className={styles["empleados-loading"]}>Cargando empleados...</p>;
   }
   if (!empresaId) {
-    return <p className={styles["empleados-loading"]}>No se encontró la empresa asociada a este usuario.</p>;
+    return (
+      <p className={styles["empleados-loading"]}>
+        No se encontró la empresa asociada a este usuario.
+      </p>
+    );
   }
+
+  // Tomamos el lastAdjustmentInfo si existe
+  const lastAdj = empresaData?.lastAdjustmentInfo as LastAdjustmentInfo | undefined;
 
   return (
     <main className={styles["empleados-container"]}>
       <h1 className={styles["empleados-title"]}>Empleados</h1>
+
+      {/* Si existe lastAdjustmentInfo, mostramos un banner */}
+      {lastAdj && (
+        <div className={styles["ajuste-banner"]}>
+          <p><strong>Ajuste de Empleados</strong></p>
+          <p>Plan actual: {lastAdj.plan}</p>
+          <p>Se han inactivado <strong>{lastAdj.inactivated}</strong> empleados de un total de <strong>{lastAdj.total}</strong>.</p>
+          <p>Fecha: {new Date(lastAdj.timestamp).toLocaleString()}</p>
+        </div>
+      )}
+
       <p className={styles["empleados-description"]}>
-  Registra tus empleados, para que el bot los reconozca a la hora de fichar.<br />
-  <span style={{ color: "red", fontWeight: "bold" }}>RECUERDA</span> que es muy <span style={{ color: "red", fontWeight: "bold" }}>IMPORTANTE</span> que tanto el nombre, como ambos apellidos comiencen con mayúsculas.
-</p>
+        Registra tus empleados, para que el bot los reconozca a la hora de fichar.
+      </p>
 
-
-      {/* Formulario para creación o edición */}
+      {/* Formulario de creación o edición */}
       {!editMode ? (
         <div className={styles["empleados-form"]}>
           <div className={styles["empleados-input-group"]}>
@@ -222,7 +266,7 @@ export default function EmpleadosPage() {
         </div>
       )}
 
-      {/* Listado de empleados */}
+      {/* Tabla de empleados */}
       <div className={styles["table-responsive"]}>
         <table className={styles["empleados-table"]}>
           <thead>
@@ -235,17 +279,29 @@ export default function EmpleadosPage() {
           </thead>
           <tbody>
             {empleados.map((emp) => (
-              <tr key={emp.id} className={styles["empleados-row"]}>
+              <tr
+                key={emp.id}
+                className={
+                  emp.active === false
+                    ? styles["empleados-row-inactive"]
+                    : styles["empleados-row"]
+                }
+              >
                 <td>{emp.nombre}</td>
                 <td>{emp.primerApellido}</td>
                 <td>{emp.segundoApellido}</td>
                 <td className={styles["empleados-actions"]}>
                   <button
                     onClick={() => {
+                      if (emp.active === false) {
+                        alert("Este empleado está inactivo. Ajusta tu plan para editarlo.");
+                        return;
+                      }
                       setEditMode(true);
                       setEditingEmpleado(emp);
                     }}
                     className={styles["empleados-btn-edit"]}
+                    disabled={emp.active === false}
                   >
                     Editar
                   </button>

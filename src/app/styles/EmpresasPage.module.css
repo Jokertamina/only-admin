@@ -18,6 +18,13 @@
   width: 100%;
 }
 
+.empresa-description {
+  margin: 0 0 10px 0;
+  color: var(--color-primary);
+  text-align: center;
+  font-weight: bold;
+}
+
 /* Mensaje de carga */
 .empresas-loading {
   font-size: 1.2rem;

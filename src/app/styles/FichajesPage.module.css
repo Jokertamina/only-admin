@@ -1,5 +1,4 @@
-/* FichajesPage.css - Diseño avanzado y responsive */
-
+/* CONTENEDOR GENERAL */
 .fichajes-container {
   min-height: 100vh;
   padding: 2rem 1rem;
@@ -17,7 +16,7 @@
   width: 100%;
 }
 
-/* Controles de ordenación */
+/* CONTROLES DE ORDENACIÓN */
 .fichajes-sort {
   display: flex;
   align-items: center;
@@ -45,14 +44,14 @@
   box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
 }
 
-/* Contenedor responsivo para la tabla */
+/* CONTENEDOR RESPONSIVO PARA TABLAS */
 .table-responsive {
   width: 100%;
   overflow-x: auto;
   margin-bottom: 2rem;
 }
 
-/* Estilos de la tabla */
+/* TABLA PRINCIPAL (exportación y listado plano) */
 .fichajes-table {
   width: 100%;
   border-collapse: collapse;
@@ -83,7 +82,7 @@
   font-size: 0.95rem;
 }
 
-/* Mensaje de carga */
+/* MENSAJE DE CARGA */
 .fichajes-loading {
   font-size: 1.2rem;
   color: var(--color-text-secondary);
@@ -91,7 +90,76 @@
   margin-top: 2rem;
 }
 
-/* Breakpoints */
+/* NUEVAS CLASES PARA AGRUPACIÓN */
+
+/* Bloque por empleado */
+.employee-group {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-alt-bg);
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  padding: 1rem;
+}
+
+.employee-group h2 {
+  font-size: 1.8rem;
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-alt-bg);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Tarjeta de jornada */
+.jornada-card {
+  background: var(--color-alt-bg);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+/* Encabezado de jornada */
+.jornada-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-main);
+}
+
+.jornada-header p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Tabla para fichajes de obra dentro de la jornada */
+.obra-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.obra-table th {
+  background-color: var(--color-primary);
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.obra-table td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+/* BREAKPOINTS */
 
 /* Escritorio y pantallas grandes (hasta 1024px) */
 @media (max-width: 1024px) {
@@ -127,4 +195,35 @@
     font-size: 0.8rem;
     padding: 0.4rem;
   }
+  .employee-group h2 {
+    font-size: 1.4rem;
+  }
+  .jornada-header p {
+    font-size: 0.8rem;
+  }
+  .obra-table th,
+  .obra-table td {
+    font-size: 0.75rem;
+    padding: 0.3rem;
+  }
+
+  /* --- NUEVAS REGLAS PARA MEJORAR LA VISTA EN MÓVILES --- */
+
+  /* La tarjeta de la jornada, con algo menos de padding para no desperdiciar espacio */
+  .jornada-card {
+    padding: 0.75rem;
+  }
+
+  /* Forzamos el .jornada-header a mostrarse en columna para que no se amontone */
+  .jornada-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Espacio vertical entre cada línea de texto */
+  .jornada-header p {
+    margin-bottom: 0.3rem;
+  }
 }
+

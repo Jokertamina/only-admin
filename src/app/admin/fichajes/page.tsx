@@ -1,4 +1,3 @@
-// src/admin/fichajes/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -13,12 +12,13 @@ import {
   doc,
 } from "firebase/firestore";
 import ExportButtons from "../../components/ExportButtons";
-import styles from "../../styles/FichajesPage.module.css"; // Importamos el CSS Module
+import styles from "../../styles/FichajesPage.module.css"; // Usamos el CSS Module
 
 interface Fichaje {
   id: string;
   empresaId: string;
   empleadoId: string;
+  type?: string; // "jornada" o "obra"
   obra: string;
   startTime: string;
   endTime: string | null;
@@ -34,11 +34,17 @@ interface Empleado {
 interface FichajeWithEmpleado {
   id: string;
   empresaId: string;
+  type?: string;
   obra: string;
   startTime: string;
   endTime: string | null;
   duracion?: number | null;
   fullName: string;
+}
+
+interface JornadaGroup {
+  jornada: FichajeWithEmpleado;
+  obras: FichajeWithEmpleado[];
 }
 
 export default function FichajesPage() {
@@ -54,7 +60,7 @@ export default function FichajesPage() {
         setLoading(false);
         return;
       }
-      // Buscamos la empresa
+      // Buscamos la empresa del usuario
       const usersRef = collection(db, "Users");
       const qUsers = query(usersRef, where("uid", "==", currentUser.uid));
       const usersSnap = await getDocs(qUsers);
@@ -63,7 +69,7 @@ export default function FichajesPage() {
         const miEmpresaId = userDoc.empresaId as string;
         setEmpresaId(miEmpresaId);
 
-        // Escuchamos los fichajes de esa empresa
+        // Escuchamos los fichajes de la empresa
         const fichajesRef = collection(db, "Fichajes");
         const qFichajes = query(fichajesRef, where("empresaId", "==", miEmpresaId));
 
@@ -84,7 +90,9 @@ export default function FichajesPage() {
             temp.push({
               id: fichajeId,
               empresaId: data.empresaId,
-              obra: data.obra,
+              type: data.type,
+              // Para fichajes de jornada mostramos "Jornada laboral"
+              obra: data.type === "jornada" ? "Jornada laboral" : data.obra,
               startTime: data.startTime,
               endTime: data.endTime || null,
               duracion: data.duracion ?? null,
@@ -130,6 +138,39 @@ export default function FichajesPage() {
 
   const sortedFichajes = getSortedFichajes();
 
+  // Agrupamos los fichajes por empleado
+  const groupedByEmployee = sortedFichajes.reduce((acc, fichaje) => {
+    if (!acc[fichaje.fullName]) {
+      acc[fichaje.fullName] = [];
+    }
+    acc[fichaje.fullName].push(fichaje);
+    return acc;
+  }, {} as Record<string, FichajeWithEmpleado[]>);
+
+  // Dentro de cada empleado, agrupamos los eventos en jornadas y asociamos las obras
+  function groupEventsByJornada(events: FichajeWithEmpleado[]): JornadaGroup[] {
+    const groups: JornadaGroup[] = [];
+    let currentGroup: JornadaGroup | null = null;
+    events.forEach((event) => {
+      if (event.type === "jornada") {
+        // Inicia una nueva jornada
+        currentGroup = { jornada: event, obras: [] };
+        groups.push(currentGroup);
+      } else if (event.type === "obra") {
+        if (currentGroup) {
+          // Asociamos la obra a la jornada si ocurre entre la entrada y (si existe) la salida
+          if (
+            !currentGroup.jornada.endTime ||
+            new Date(event.startTime) <= new Date(currentGroup.jornada.endTime)
+          ) {
+            currentGroup.obras.push(event);
+          }
+        }
+      }
+    });
+    return groups;
+  }
+
   if (loading) {
     return <p className={styles["fichajes-loading"]}>Cargando fichajes...</p>;
   }
@@ -141,7 +182,7 @@ export default function FichajesPage() {
     );
   }
 
-  // Arreglo para exportar
+  // Arreglo para exportar (formato plano)
   const fichajesForExport = sortedFichajes.map((f) => ({
     id: f.id,
     empresaId: f.empresaId,
@@ -172,36 +213,83 @@ export default function FichajesPage() {
 
       <ExportButtons fichajes={fichajesForExport} />
 
-      <div className={styles["table-responsive"]}>
-        <table className={styles["fichajes-table"]}>
-          <thead>
-            <tr className={styles["fichajes-table-head-row"]}>
-              <th className={styles["fichajes-table-head"]}>Empleado</th>
-              <th className={styles["fichajes-table-head"]}>Obra</th>
-              <th className={styles["fichajes-table-head"]}>Entrada</th>
-              <th className={styles["fichajes-table-head"]}>Salida</th>
-              <th className={styles["fichajes-table-head"]}>Duración (hrs)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedFichajes.map((f) => (
-              <tr key={f.id} className={styles["fichajes-table-row"]}>
-                <td className={styles["fichajes-table-cell"]}>{f.fullName}</td>
-                <td className={styles["fichajes-table-cell"]}>{f.obra}</td>
-                <td className={styles["fichajes-table-cell"]}>
-                  {new Date(f.startTime).toLocaleString()}
-                </td>
-                <td className={styles["fichajes-table-cell"]}>
-                  {f.endTime ? new Date(f.endTime).toLocaleString() : "—"}
-                </td>
-                <td className={styles["fichajes-table-cell"]}>
-                  {f.duracion ? f.duracion.toFixed(2) : ""}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Agrupamos y mostramos por empleado */}
+      {Object.entries(groupedByEmployee).map(([employee, events]) => {
+        const sortedEvents = events.sort(
+          (a, b) =>
+            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        );
+        const jornadas = groupEventsByJornada(sortedEvents);
+        return (
+          <div key={employee} className={styles["employee-group"]}>
+            <h2>{employee}</h2>
+            {jornadas.length > 0 ? (
+              jornadas.map((group, idx) => (
+                <div key={idx} className={styles["jornada-card"]}>
+                  <div className={styles["jornada-header"]}>
+                    <p>
+                      <strong>Jornada Laboral</strong>
+                    </p>
+                    <p>
+                      <strong>Entrada:</strong>{" "}
+                      {new Date(group.jornada.startTime).toLocaleString()}
+                    </p>
+                    <p>
+                      <strong>Salida:</strong>{" "}
+                      {group.jornada.endTime
+                        ? new Date(group.jornada.endTime).toLocaleString()
+                        : "—"}
+                    </p>
+                    <p>
+                      <strong>Duración:</strong>{" "}
+                      {group.jornada.duracion
+                        ? group.jornada.duracion.toFixed(2)
+                        : "—"}{" "}
+                      hrs
+                    </p>
+                  </div>
+                  {group.obras.length > 0 && (
+                    <div className={styles["table-responsive"]}>
+                    <table className={styles["obra-table"]}>
+                      <thead>
+                        <tr>
+                          <th>Obra</th>
+                          <th>Entrada</th>
+                          <th>Salida</th>
+                          <th>Duración (hrs)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.obras.map((obraEvent) => (
+                          <tr key={obraEvent.id}>
+                            <td>{obraEvent.obra}</td>
+                            <td>
+                              {new Date(obraEvent.startTime).toLocaleString()}
+                            </td>
+                            <td>
+                              {obraEvent.endTime
+                                ? new Date(obraEvent.endTime).toLocaleString()
+                                : "—"}
+                            </td>
+                            <td>
+                              {obraEvent.duracion
+                                ? obraEvent.duracion.toFixed(2)
+                                : ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p>No hay fichajes de jornada para este empleado.</p>
+            )}
+          </div>
+        );
+      })}
     </main>
   );
 }

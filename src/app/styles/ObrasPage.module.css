@@ -25,6 +25,16 @@
   font-weight: bold;
 }
 
+.ajuste-banner {
+  background-color: #f8d7da; /* Rojo clarito */
+  border: 1px solid #f5c6cb; /* Borde a juego */
+  color: #721c24;            /* Texto rojo oscuro */
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
 /* Formulario de creación/edición */
 .obras-form {
   background-color: var(--color-alt-bg);
@@ -142,6 +152,11 @@
   font-weight: 600;
   text-align: center;
   white-space: nowrap;
+}
+
+.obras-row-inactive {
+  background-color: #da787877;
+  opacity: 0.7;
 }
 
 .obras-table-row:nth-child(even) {
