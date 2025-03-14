@@ -1,53 +1,130 @@
-/* HomePage.css */
+/* HomePage.module.css */
 
-.home-container {
-  min-height: 80vh;
+
+
+.homeContainer {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  width: 100%;
   background: var(--gradient-bg);
 }
 
-.hero-section {
-  text-align: center;
-  padding: 2rem;
-  max-width: 600px;
-  margin: 0 auto;
+/* Hero */
+.heroSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4rem 2rem;
+  gap: 2rem;
 }
 
-.home-heading {
-  font-size: 2.5rem;
+.heroContent {
+  flex: 1;
+}
+
+.heroHeading {
+  font-size: 3rem;
   color: var(--color-primary);
   margin-bottom: 1rem;
 }
 
-.home-description {
+.heroDescription {
   font-size: 1.2rem;
   color: var(--color-text-main);
   margin-bottom: 2rem;
 }
 
-.cta-button {
+.ctaButton {
   background-color: var(--color-primary);
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.3s ease;
 }
 
-.cta-button:hover {
+.ctaButton:hover {
   background-color: var(--color-secondary);
+}
+
+.heroImage {
+  flex: 1;
+}
+
+.heroImage img {
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* Feature Sections */
+.featureSection, .featureSectionReverse {
+  display: flex;
+  align-items: center;
+  padding: 3rem 2rem;
+  gap: 2rem;
+}
+
+.featureSectionReverse {
+  flex-direction: row-reverse;
+}
+
+.featureHeading {
+  font-size: 2rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.featureDescription {
+  font-size: 1.1rem;
+  color: var(--color-text-main);
+}
+
+.featureContent {
+  flex: 1;
+}
+
+.featureImage {
+  flex: 1;
+}
+
+.featureImage img {
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* CTA Section */
+.ctaSection {
+  text-align: center;
+  padding: 3rem 2rem;
+  background-color: #f7f7f7;
+}
+
+.ctaHeading {
+  font-size: 2.5rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.ctaDescription {
+  font-size: 1.2rem;
+  color: var(--color-text-main);
+  margin-bottom: 2rem;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .home-heading {
-    font-size: 2rem;
+  .heroSection,
+  .featureSection,
+  .featureSectionReverse {
+    flex-direction: column;
+    text-align: center;
   }
-  .home-description {
-    font-size: 1rem;
+  .heroHeading {
+    font-size: 2.5rem;
+  }
+  .ctaHeading {
+    font-size: 2rem;
   }
 }
