@@ -12,7 +12,7 @@
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96"
    inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
-   sodipodi:docname="Favicon.svg"
+   sodipodi:docname="favicon.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -2448,7 +2448,12 @@
          id="stop44290" /></linearGradient></defs><g
      inkscape:label="Capa 1"
      inkscape:groupmode="layer"
-     id="layer1"><text
+     id="layer1"><circle
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:6.03393;stroke-linecap:square;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path48423"
+       cx="67.733337"
+       cy="67.734184"
+       r="67.73333" /><text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.87777px;font-family:'Arial Rounded MT Bold';-inkscape-font-specification:'Arial Rounded MT Bold, ';fill:#a133a5;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:5.374;stroke-linecap:square;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
        x="827.78925"

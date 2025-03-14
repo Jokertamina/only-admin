@@ -1,18 +1,25 @@
-"use client"; // Necesario para poder usar Providers en App Router
+
 
 import { ReactNode } from "react";
 import { EmpresaProvider } from "./context/EmpresaContext";
 import NavBar from "./components/NavBar";
 import "@/app/globals.css";
+import Head from "next/head";
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export const metadata = {
+  title: "Symcrox",
+  icons: {
+    icon: "/favicon.svg", // Usa SVG
+    shortcut: "/favicon.ico", // Alternativa por compatibilidad
+    apple: "/favicon.png", // Para iOS
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
-        <EmpresaProvider>
-          <NavBar /> {/* Aparece en todas las páginas */}
-          {children} {/* Aquí se renderiza cada ruta */}
-        </EmpresaProvider>
+        {children}
       </body>
     </html>
   );
