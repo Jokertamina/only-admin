@@ -1,14 +1,20 @@
-import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentUpdated,
+  onDocumentDeleted
+} from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 initializeApp();
 
 async function adjustObras(empresaId: string, plan: string) {
   const db = getFirestore();
   const obrasRef = db.collection("Obras");
+  // PREMIUM sin límite, BASICO hasta 3, SIN PLAN 1.
   const maxObras = plan === "PREMIUM" ? Infinity : plan === "BASICO" ? 3 : 1;
 
+  // Consulta obras ordenadas por createdAt, asignando fecha mínima si falta.
   const snapshot = await obrasRef
     .where("empresaId", "==", empresaId)
     .orderBy("createdAt", "asc")
@@ -16,17 +22,29 @@ async function adjustObras(empresaId: string, plan: string) {
 
   const batch = db.batch();
   let inactivated = 0;
-
   snapshot.docs.forEach((docSnap, idx) => {
-    batch.update(docSnap.ref, { active: idx < maxObras });
-    if (idx >= maxObras) inactivated++;
+    const data = docSnap.data();
+    // Si no existe createdAt, se asigna epoch.
+    const currentCreatedAt = data.createdAt || Timestamp.fromDate(new Date(0));
+    const shouldBeActive = idx < maxObras;
+
+    // Solo actualiza si es necesario
+    if (data.active !== shouldBeActive) {
+      batch.update(docSnap.ref, {
+        active: shouldBeActive,
+        createdAt: currentCreatedAt
+      });
+    }
+    if (!shouldBeActive) inactivated++;
   });
 
   await batch.commit();
-
   return { total: snapshot.size, inactivated };
 }
 
+/* ---------- TRIGGERS ---------- */
+
+// 1. Al crear una empresa, se ajusta la lista de obras.
 export const adjustObrasOnCompanyCreate = onDocumentCreated(
   { document: "Empresas/{empresaId}" },
   async (event) => {
@@ -37,10 +55,9 @@ export const adjustObrasOnCompanyCreate = onDocumentCreated(
     const plan = empresaData.plan || "SIN PLAN";
 
     const summary = await adjustObras(empresaId, plan);
-
     const db = getFirestore();
     await db.collection("Empresas").doc(empresaId).update({
-      lastAdjustmentObrasInfo: {
+      lastAdjustmentInfoObras: {
         total: summary.total,
         inactivated: summary.inactivated,
         plan,
@@ -50,6 +67,7 @@ export const adjustObrasOnCompanyCreate = onDocumentCreated(
   }
 );
 
+// 2. Al cambiar el plan, se reajustan los estados de las obras.
 export const adjustObrasOnPlanChange = onDocumentUpdated(
   { document: "Empresas/{empresaId}" },
   async (event) => {
@@ -62,9 +80,8 @@ export const adjustObrasOnPlanChange = onDocumentUpdated(
 
     const summary = await adjustObras(empresaId, plan);
     const db = getFirestore();
-
     await db.collection("Empresas").doc(empresaId).update({
-      lastAdjustmentObrasInfo: {
+      lastAdjustmentInfoObras: {
         total: summary.total,
         inactivated: summary.inactivated,
         plan,
@@ -74,45 +91,65 @@ export const adjustObrasOnPlanChange = onDocumentUpdated(
   }
 );
 
+// 3. Al crear una obra, se sobrescribe createdAt y se pone active en true, luego se recalcula la lista.
 export const enforceObrasLimitOnCreate = onDocumentCreated(
-    { document: "Obras/{obraId}" },
-    async (event) => {
-      const newObraData = event.data?.data();
-      if (!newObraData) return;
-  
-      const empresaId = newObraData.empresaId;
-      if (!empresaId) return;
-  
-      const db = getFirestore();
-      const empresaDoc = await db.collection("Empresas").doc(empresaId).get();
-      if (!empresaDoc.exists) return;
-  
-      const plan = empresaDoc.data()?.plan || "SIN PLAN";
-      const maxObras = plan === "PREMIUM" ? Infinity : plan === "BASICO" ? 3 : 1;
-  
-      const activeObrasSnap = await db.collection("Obras")
-        .where("empresaId", "==", empresaId)
-        .where("active", "==", true)
-        .get();
-  
-      let message = "Obra creada correctamente y activa.";
-      let inactivated = 0;
-  
-      if (activeObrasSnap.size >= maxObras) {
-        const obraId = event.params.obraId;
-        await db.collection("Obras").doc(obraId).update({ active: false });
-        message = "Obra creada supera límite del plan. Se marcó inactiva automáticamente.";
-        inactivated = 1;
-      }
-  
-      await empresaDoc.ref.update({
-        lastAdjustmentObrasInfo: {
-          message,
-          total: activeObrasSnap.size + 1,
-          inactivated,
-          plan,
-          timestamp: new Date().toISOString(),
-        },
-      });
-    }
-  );
+  { document: "Obras/{obraId}" },
+  async (event) => {
+    const newObraData = event.data?.data();
+    if (!newObraData) return;
+
+    const empresaId = newObraData.empresaId;
+    if (!empresaId) return;
+
+    // Sobrescribimos createdAt y establecemos active en true,
+    // garantizando que la nueva obra arranque activa.
+    await event.data?.ref.update({
+      createdAt: Timestamp.now(),
+      active: true
+    });
+
+    const db = getFirestore();
+    const empresaRef = db.collection("Empresas").doc(empresaId);
+    const empresaDoc = await empresaRef.get();
+    if (!empresaDoc.exists) return;
+    const plan = empresaDoc.data()?.plan || "SIN PLAN";
+
+    // Actualizamos el documento de la empresa con el resumen de las obras.
+    const summary = await adjustObras(empresaId, plan);
+    await empresaRef.update({
+      lastAdjustmentInfoObras: {
+        total: summary.total,
+        inactivated: summary.inactivated,
+        plan,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+);
+
+// 4. Al eliminar una obra, se recalcula y se actualiza la info en la empresa.
+export const adjustObrasOnDelete = onDocumentDeleted(
+  { document: "Obras/{obraId}" },
+  async (event) => {
+    const deletedData = event.data?.data();
+    if (!deletedData) return;
+    const empresaId = deletedData.empresaId;
+    if (!empresaId) return;
+
+    const db = getFirestore();
+    const empresaRef = db.collection("Empresas").doc(empresaId);
+    const empresaDoc = await empresaRef.get();
+    if (!empresaDoc.exists) return;
+    const plan = empresaDoc.data()?.plan || "SIN PLAN";
+
+    const summary = await adjustObras(empresaId, plan);
+    await empresaRef.update({
+      lastAdjustmentInfoObras: {
+        total: summary.total,
+        inactivated: summary.inactivated,
+        plan,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+);

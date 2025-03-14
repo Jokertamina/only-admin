@@ -11,8 +11,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  serverTimestamp,
   getDoc,
+  onSnapshot
 } from "firebase/firestore";
 import styles from "../../styles/EmpleadosPage.module.css";
 
@@ -26,7 +26,6 @@ interface Empleado {
   createdAt?: any;
 }
 
-// Interfaz opcional para el resumen de ajuste
 interface LastAdjustmentInfo {
   inactivated: number;
   total: number;
@@ -46,17 +45,18 @@ export default function EmpleadosPage() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Guardamos aquí los datos de la empresa (incluyendo lastAdjustmentInfo)
+  // Aquí guardamos los datos de la empresa, incluyendo lastAdjustmentInfo
   const [empresaData, setEmpresaData] = useState<any>(null);
 
   useEffect(() => {
-    async function fetchEmpresaIdYEmpleados() {
+    async function fetchEmpresaIdAndSubscribe() {
       const currentUser = auth.currentUser;
       if (!currentUser) {
         setLoading(false);
         return;
       }
-      // 1) Buscamos la empresaId del usuario
+
+      // 1) Obtenemos la empresaId del usuario actual
       const usersRef = collection(db, "Users");
       const qUser = query(usersRef, where("uid", "==", currentUser.uid));
       const usersSnap = await getDocs(qUser);
@@ -66,33 +66,43 @@ export default function EmpleadosPage() {
         const miEmpresaId = userDoc.empresaId as string;
         setEmpresaId(miEmpresaId);
 
-        // 2) Cargamos la empresa (para ver lastAdjustmentInfo y plan, etc.)
+        // 2) Suscripción en tiempo real al documento de la empresa
         const empresaRef = doc(db, "Empresas", miEmpresaId);
-        const empresaSnap = await getDoc(empresaRef);
-        if (empresaSnap.exists()) {
-          setEmpresaData(empresaSnap.data());
-        }
+        const unsubEmpresa = onSnapshot(empresaRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setEmpresaData(docSnap.data());
+          }
+        });
 
-        // 3) Cargamos los empleados
-        await fetchEmpleados(miEmpresaId);
+        // 3) Suscripción en tiempo real a los empleados de la empresa
+        const empRef = collection(db, "Empleados");
+        const qEmp = query(empRef, where("empresaId", "==", miEmpresaId));
+        const unsubEmpleados = onSnapshot(qEmp, (snap) => {
+          const temp: Empleado[] = [];
+          snap.forEach((docu) => {
+            temp.push({ id: docu.id, ...docu.data() } as Empleado);
+          });
+          setEmpleados(temp);
+        });
+
+        // Marcamos que ya terminamos de cargar
+        setLoading(false);
+
+        // Limpiamos las suscripciones al desmontar el componente
+        return () => {
+          unsubEmpresa();
+          unsubEmpleados();
+        };
       }
+
+      // Si no hay empresa, dejamos de cargar
       setLoading(false);
     }
-    fetchEmpresaIdYEmpleados();
+
+    fetchEmpresaIdAndSubscribe();
   }, []);
 
-  async function fetchEmpleados(miEmpresaId: string) {
-    const empRef = collection(db, "Empleados");
-    const qEmp = query(empRef, where("empresaId", "==", miEmpresaId));
-    const snap = await getDocs(qEmp);
-    const temp: Empleado[] = [];
-    snap.forEach((docu) => {
-      temp.push({ id: docu.id, ...docu.data() } as Empleado);
-    });
-    setEmpleados(temp);
-  }
-
-  // Crea un nuevo empleado (siempre con active: true)
+  // Crea un nuevo empleado
   async function handleCreate() {
     if (!empresaId) return;
     if (!newEmpleado.nombre || !newEmpleado.primerApellido || !newEmpleado.segundoApellido) {
@@ -105,11 +115,12 @@ export default function EmpleadosPage() {
       segundoApellido: newEmpleado.segundoApellido.trim().toLowerCase(),
       empresaId,
       active: true,
-      createdAt: serverTimestamp()
+      // No añadimos createdAt, lo gestionan las Cloud Functions con Timestamp.now()
     });
 
+    // Reseteamos el formulario
     setNewEmpleado({ nombre: "", primerApellido: "", segundoApellido: "" });
-    fetchEmpleados(empresaId);
+    // No llamamos fetchEmpleados porque la suscripción en tiempo real se encarga
   }
 
   // Actualiza un empleado
@@ -122,22 +133,24 @@ export default function EmpleadosPage() {
       primerApellido: editingEmpleado.primerApellido.trim().toLowerCase(),
       segundoApellido: editingEmpleado.segundoApellido.trim().toLowerCase(),
     });
+
     setEditMode(false);
     setEditingEmpleado(null);
-    fetchEmpleados(empresaId);
+    // No llamamos fetchEmpleados porque la suscripción en tiempo real se encarga
   }
 
-  // Elimina un empleado definitivamente
+  // Elimina un empleado
   async function handleDelete(id: string | undefined) {
     if (!id || !empresaId) return;
     const ref = doc(db, "Empleados", id);
     await deleteDoc(ref);
-    fetchEmpleados(empresaId);
+    // No llamamos fetchEmpleados porque la suscripción en tiempo real se encarga
   }
 
   if (loading) {
     return <p className={styles["empleados-loading"]}>Cargando empleados...</p>;
   }
+
   if (!empresaId) {
     return (
       <p className={styles["empleados-loading"]}>
@@ -146,22 +159,25 @@ export default function EmpleadosPage() {
     );
   }
 
-  // Tomamos el lastAdjustmentInfo si existe
   const lastAdj = empresaData?.lastAdjustmentInfo as LastAdjustmentInfo | undefined;
 
   return (
     <main className={styles["empleados-container"]}>
       <h1 className={styles["empleados-title"]}>Empleados</h1>
 
-      {/* Si existe lastAdjustmentInfo, mostramos un banner */}
+      {/* Banner con la info del ajuste */}
       {lastAdj && (
         <div className={styles["ajuste-banner"]}>
           <p><strong>Ajuste de Empleados</strong></p>
           <p>Plan actual: {lastAdj.plan}</p>
-          <p>Se han inactivado <strong>{lastAdj.inactivated}</strong> empleados de un total de <strong>{lastAdj.total}</strong>.</p>
+          <p>
+            Se han inactivado <strong className={styles["text-red"]}>{lastAdj.inactivated}</strong> empleados de un total de{" "}
+            <strong className={styles["text-green"]}>{lastAdj.total}</strong>.
+          </p>
           <p>Fecha: {new Date(lastAdj.timestamp).toLocaleString()}</p>
         </div>
       )}
+
 
       <p className={styles["empleados-description"]}>
         Registra tus empleados, para que el bot los reconozca a la hora de fichar.

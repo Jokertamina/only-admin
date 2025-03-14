@@ -26,14 +26,25 @@
 
 /* Banner de ajuste de empleados */
 .ajuste-banner {
-  background-color: #f8d7da; /* Rojo clarito */
-  border: 1px solid #f5c6cb; /* Borde a juego */
-  color: #721c24;            /* Texto rojo oscuro */
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 8px;
-  text-align: center;
+  background-color: #7b61ff;
+    border: 4px solid #ff6b81;
+    color: #ffffff;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    text-align: center;
 }
+
+.text-red {
+  color: #bf0000; /* Rojo fuerte para resaltar */
+  font-weight: bold;
+}
+
+.text-green {
+  color: #00ff7f; /* Verde neón para resaltar */
+  font-weight: bold;
+}
+
 
 /* Formulario de creación/edición */
 .empleados-form {

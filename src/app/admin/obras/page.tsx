@@ -1,19 +1,18 @@
-// src/admin/obras/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth } from "../../../lib/firebaseConfig";
+import { auth, db } from "../../../lib/firebaseConfig";
 import {
   collection,
   query,
   where,
-  getDocs,
   addDoc,
   doc,
   updateDoc,
   deleteDoc,
+  getDocs,
   getDoc,
-  serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore";
 import styles from "../../styles/ObrasPage.module.css";
 
@@ -26,7 +25,7 @@ interface Obra {
   createdAt?: any;
 }
 
-// Interfaz opcional para el resumen de ajuste en la empresa (obras)
+// Interfaz para el resumen de ajuste de obras en la empresa
 interface LastAdjustmentObrasInfo {
   message?: string;
   inactivated: number;
@@ -43,18 +42,18 @@ export default function ObrasPage() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Guardamos también la data de la empresa para mostrar avisos
+  // Guardamos los datos de la empresa, que incluyen lastAdjustmentObrasInfo
   const [empresaData, setEmpresaData] = useState<any>(null);
 
   useEffect(() => {
-    async function fetchEmpresaIdYObras() {
+    async function fetchEmpresaIdAndSubscribe() {
       const currentUser = auth.currentUser;
       if (!currentUser) {
         setLoading(false);
         return;
       }
 
-      // 1) Buscamos la empresa del usuario
+      // 1) Obtenemos la empresa del usuario
       const usersRef = collection(db, "Users");
       const qUsers = query(usersRef, where("uid", "==", currentUser.uid));
       const usersSnap = await getDocs(qUsers);
@@ -64,33 +63,39 @@ export default function ObrasPage() {
         const miEmpresaId = userDoc.empresaId as string;
         setEmpresaId(miEmpresaId);
 
-        // 2) Cargamos el doc de la empresa para leer lastAdjustmentObrasInfo
-        const empresaDocRef = doc(db, "Empresas", miEmpresaId);
-        const empresaSnap = await getDoc(empresaDocRef);
-        if (empresaSnap.exists()) {
-          setEmpresaData(empresaSnap.data());
-        }
+        // 2) Suscripción en tiempo real al documento de la empresa
+        const empresaRef = doc(db, "Empresas", miEmpresaId);
+        const unsubEmpresa = onSnapshot(empresaRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setEmpresaData(docSnap.data());
+          }
+        });
 
-        // 3) Cargamos las obras
-        await fetchObras(miEmpresaId);
+        // 3) Suscripción en tiempo real a la colección "Obras"
+        const obrasRef = collection(db, "Obras");
+        const qObras = query(obrasRef, where("empresaId", "==", miEmpresaId));
+        const unsubObras = onSnapshot(qObras, (snapshot) => {
+          const temp: Obra[] = [];
+          snapshot.forEach((docu) => {
+            temp.push({ id: docu.id, ...docu.data() } as Obra);
+          });
+          setObras(temp);
+        });
+
+        setLoading(false);
+
+        // Cleanup: Cancelamos las suscripciones al desmontar
+        return () => {
+          unsubEmpresa();
+          unsubObras();
+        };
       }
+
       setLoading(false);
     }
-    fetchEmpresaIdYObras();
+
+    fetchEmpresaIdAndSubscribe();
   }, []);
-
-  // Carga las obras filtradas por empresa
-  async function fetchObras(miEmpresaId: string) {
-    const obrasRef = collection(db, "Obras");
-    const qObras = query(obrasRef, where("empresaId", "==", miEmpresaId));
-    const snap = await getDocs(qObras);
-
-    const temp: Obra[] = [];
-    snap.forEach((docu) => {
-      temp.push({ id: docu.id, ...docu.data() } as Obra);
-    });
-    setObras(temp);
-  }
 
   // Crear una nueva obra
   async function handleCreate() {
@@ -100,21 +105,15 @@ export default function ObrasPage() {
       empresaId,
       nombre: newObra.nombre,
       totalHoras: 0,
-      active: true, // por si tus funciones usan 'active' en su lógica
-      createdAt: serverTimestamp(),
+      active: true,
+      // No añadimos createdAt; las Cloud Functions lo gestionan con Timestamp.now()
     });
 
-    // Recargamos obras y la data de la empresa para refrescar avisos
-    await fetchObras(empresaId);
-    const empresaSnap = await getDoc(doc(db, "Empresas", empresaId));
-    if (empresaSnap.exists()) {
-      setEmpresaData(empresaSnap.data());
-    }
-
+    // Reseteamos el formulario; la suscripción en tiempo real actualiza la lista
     setNewObra({ nombre: "" });
   }
 
-  // Actualizar una obra (solo el nombre en este caso)
+  // Actualizar una obra (solo el nombre)
   async function handleUpdate() {
     if (!editingObra?.id || !empresaId) return;
     const ref = doc(db, "Obras", editingObra.id);
@@ -125,26 +124,14 @@ export default function ObrasPage() {
 
     setEditMode(false);
     setEditingObra(null);
-
-    // Recargamos
-    await fetchObras(empresaId);
-    const empresaSnap = await getDoc(doc(db, "Empresas", empresaId));
-    if (empresaSnap.exists()) {
-      setEmpresaData(empresaSnap.data());
-    }
+    // La suscripción se encarga de actualizar la lista en tiempo real
   }
 
   // Eliminar una obra
   async function handleDelete(id: string | undefined) {
     if (!id || !empresaId) return;
     await deleteDoc(doc(db, "Obras", id));
-
-    // Recargamos
-    await fetchObras(empresaId);
-    const empresaSnap = await getDoc(doc(db, "Empresas", empresaId));
-    if (empresaSnap.exists()) {
-      setEmpresaData(empresaSnap.data());
-    }
+    // La suscripción en tiempo real actualiza la lista automáticamente
   }
 
   if (loading) {
@@ -158,32 +145,32 @@ export default function ObrasPage() {
     );
   }
 
-  // Obtenemos la info de ajuste de obras
-  const lastObrasAdj = empresaData?.lastAdjustmentObrasInfo as LastAdjustmentObrasInfo | undefined;
+  const lastObrasAdj = empresaData?.lastAdjustmentInfoObras as LastAdjustmentObrasInfo | undefined;
 
   return (
     <main className={styles["obras-container"]}>
       <h1 className={styles["obras-title"]}>Obras</h1>
 
-      {/* Aviso si existe lastAdjustmentObrasInfo */}
+      {/* Aviso con la info del ajuste */}
       {lastObrasAdj && (
         <div className={styles["ajuste-banner"]}>
           <p><strong>Ajuste de Obras</strong></p>
           {lastObrasAdj.message && <p>{lastObrasAdj.message}</p>}
           <p>Plan actual: {lastObrasAdj.plan}</p>
           <p>
-            Inactivadas <strong>{lastObrasAdj.inactivated}</strong> de un total
-            de <strong>{lastObrasAdj.total}</strong> obras.
+            Inactivadas <strong className={styles["text-red"]}>{lastObrasAdj.inactivated}</strong> de un total de{" "}
+            <strong className={styles["text-green"]}>{lastObrasAdj.total}</strong> obras.
           </p>
           <p>Fecha: {new Date(lastObrasAdj.timestamp).toLocaleString()}</p>
         </div>
       )}
 
+
       <p className={styles["obras-description"]}>
-        Agrega tus obras activas, para que los empleados puedan visualizarlas,
-        desde el bot de fichajes.
+        Agrega tus obras activas, para que los empleados puedan visualizarlas desde el bot de fichajes.
       </p>
 
+      {/* Formulario de creación o edición */}
       {!editMode ? (
         <section className={styles["obras-form"]}>
           <input
