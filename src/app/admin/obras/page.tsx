@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "../../../lib/firebaseConfig";
 import {
   collection,
   query,
@@ -11,9 +10,11 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
-  getDoc,
   onSnapshot,
+  DocumentData,
+  Timestamp
 } from "firebase/firestore";
+import { auth, db } from "../../../lib/firebaseConfig";
 import styles from "../../styles/ObrasPage.module.css";
 
 interface Obra {
@@ -22,7 +23,7 @@ interface Obra {
   nombre: string;
   totalHoras?: number;
   active?: boolean;
-  createdAt?: any;
+  createdAt?: Timestamp; // Usamos Timestamp en lugar de any
 }
 
 // Interfaz para el resumen de ajuste de obras en la empresa
@@ -42,8 +43,8 @@ export default function ObrasPage() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Guardamos los datos de la empresa, que incluyen lastAdjustmentObrasInfo
-  const [empresaData, setEmpresaData] = useState<any>(null);
+  // Cambiamos any a DocumentData | null
+  const [empresaData, setEmpresaData] = useState<DocumentData | null>(null);
 
   useEffect(() => {
     async function fetchEmpresaIdAndSubscribe() {
@@ -124,14 +125,12 @@ export default function ObrasPage() {
 
     setEditMode(false);
     setEditingObra(null);
-    // La suscripción se encarga de actualizar la lista en tiempo real
   }
 
   // Eliminar una obra
   async function handleDelete(id: string | undefined) {
     if (!id || !empresaId) return;
     await deleteDoc(doc(db, "Obras", id));
-    // La suscripción en tiempo real actualiza la lista automáticamente
   }
 
   if (loading) {
@@ -145,7 +144,9 @@ export default function ObrasPage() {
     );
   }
 
-  const lastObrasAdj = empresaData?.lastAdjustmentInfoObras as LastAdjustmentObrasInfo | undefined;
+  const lastObrasAdj = empresaData?.lastAdjustmentInfoObras as
+    | LastAdjustmentObrasInfo
+    | undefined;
 
   return (
     <main className={styles["obras-container"]}>
@@ -154,20 +155,29 @@ export default function ObrasPage() {
       {/* Aviso con la info del ajuste */}
       {lastObrasAdj && (
         <div className={styles["ajuste-banner"]}>
-          <p><strong>Ajuste de Obras</strong></p>
+          <p>
+            <strong>Ajuste de Obras</strong>
+          </p>
           {lastObrasAdj.message && <p>{lastObrasAdj.message}</p>}
           <p>Plan actual: {lastObrasAdj.plan}</p>
           <p>
-            Inactivadas <strong className={styles["text-red"]}>{lastObrasAdj.inactivated}</strong> de un total de{" "}
-            <strong className={styles["text-green"]}>{lastObrasAdj.total}</strong> obras.
+            Inactivadas{" "}
+            <strong className={styles["text-red"]}>
+              {lastObrasAdj.inactivated}
+            </strong>{" "}
+            de un total de{" "}
+            <strong className={styles["text-green"]}>
+              {lastObrasAdj.total}
+            </strong>{" "}
+            obras.
           </p>
           <p>Fecha: {new Date(lastObrasAdj.timestamp).toLocaleString()}</p>
         </div>
       )}
 
-
       <p className={styles["obras-description"]}>
-        Agrega tus obras activas, para que los empleados puedan visualizarlas desde el bot de fichajes.
+        Agrega tus obras activas, para que los empleados puedan visualizarlas
+        desde el bot de fichajes.
       </p>
 
       {/* Formulario de creación o edición */}

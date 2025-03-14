@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, db } from "../../../lib/firebaseConfig";
 import {
   collection,
   query,
@@ -11,9 +10,11 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  getDoc,
-  onSnapshot
+  onSnapshot,
+  DocumentData,
+  Timestamp
 } from "firebase/firestore";
+import { auth, db } from "../../../lib/firebaseConfig";
 import styles from "../../styles/EmpleadosPage.module.css";
 
 interface Empleado {
@@ -23,7 +24,7 @@ interface Empleado {
   segundoApellido: string;
   empresaId: string;
   active?: boolean;
-  createdAt?: any;
+  createdAt?: Timestamp; // Usamos Timestamp en lugar de any
 }
 
 interface LastAdjustmentInfo {
@@ -45,8 +46,8 @@ export default function EmpleadosPage() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Aquí guardamos los datos de la empresa, incluyendo lastAdjustmentInfo
-  const [empresaData, setEmpresaData] = useState<any>(null);
+  // Cambiamos any a DocumentData | null para evitar no-explicit-any
+  const [empresaData, setEmpresaData] = useState<DocumentData | null>(null);
 
   useEffect(() => {
     async function fetchEmpresaIdAndSubscribe() {
@@ -85,7 +86,6 @@ export default function EmpleadosPage() {
           setEmpleados(temp);
         });
 
-        // Marcamos que ya terminamos de cargar
         setLoading(false);
 
         // Limpiamos las suscripciones al desmontar el componente
@@ -95,7 +95,6 @@ export default function EmpleadosPage() {
         };
       }
 
-      // Si no hay empresa, dejamos de cargar
       setLoading(false);
     }
 
@@ -105,7 +104,11 @@ export default function EmpleadosPage() {
   // Crea un nuevo empleado
   async function handleCreate() {
     if (!empresaId) return;
-    if (!newEmpleado.nombre || !newEmpleado.primerApellido || !newEmpleado.segundoApellido) {
+    if (
+      !newEmpleado.nombre ||
+      !newEmpleado.primerApellido ||
+      !newEmpleado.segundoApellido
+    ) {
       return;
     }
 
@@ -120,7 +123,6 @@ export default function EmpleadosPage() {
 
     // Reseteamos el formulario
     setNewEmpleado({ nombre: "", primerApellido: "", segundoApellido: "" });
-    // No llamamos fetchEmpleados porque la suscripción en tiempo real se encarga
   }
 
   // Actualiza un empleado
@@ -136,7 +138,6 @@ export default function EmpleadosPage() {
 
     setEditMode(false);
     setEditingEmpleado(null);
-    // No llamamos fetchEmpleados porque la suscripción en tiempo real se encarga
   }
 
   // Elimina un empleado
@@ -144,7 +145,6 @@ export default function EmpleadosPage() {
     if (!id || !empresaId) return;
     const ref = doc(db, "Empleados", id);
     await deleteDoc(ref);
-    // No llamamos fetchEmpleados porque la suscripción en tiempo real se encarga
   }
 
   if (loading) {
@@ -171,13 +171,14 @@ export default function EmpleadosPage() {
           <p><strong>Ajuste de Empleados</strong></p>
           <p>Plan actual: {lastAdj.plan}</p>
           <p>
-            Se han inactivado <strong className={styles["text-red"]}>{lastAdj.inactivated}</strong> empleados de un total de{" "}
+            Se han inactivado{" "}
+            <strong className={styles["text-red"]}>{lastAdj.inactivated}</strong>{" "}
+            empleados de un total de{" "}
             <strong className={styles["text-green"]}>{lastAdj.total}</strong>.
           </p>
           <p>Fecha: {new Date(lastAdj.timestamp).toLocaleString()}</p>
         </div>
       )}
-
 
       <p className={styles["empleados-description"]}>
         Registra tus empleados, para que el bot los reconozca a la hora de fichar.
@@ -221,7 +222,10 @@ export default function EmpleadosPage() {
               }
             />
           </div>
-          <button onClick={handleCreate} className={styles["empleados-btn-create"]}>
+          <button
+            onClick={handleCreate}
+            className={styles["empleados-btn-create"]}
+          >
             Crear
           </button>
         </div>
@@ -266,7 +270,10 @@ export default function EmpleadosPage() {
             />
           </div>
           <div className={styles["empleados-btn-group"]}>
-            <button onClick={handleUpdate} className={styles["empleados-btn-save"]}>
+            <button
+              onClick={handleUpdate}
+              className={styles["empleados-btn-save"]}
+            >
               Guardar
             </button>
             <button
@@ -310,7 +317,9 @@ export default function EmpleadosPage() {
                   <button
                     onClick={() => {
                       if (emp.active === false) {
-                        alert("Este empleado está inactivo. Ajusta tu plan para editarlo.");
+                        alert(
+                          "Este empleado está inactivo. Ajusta tu plan para editarlo."
+                        );
                         return;
                       }
                       setEditMode(true);
