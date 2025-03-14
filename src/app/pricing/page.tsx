@@ -54,22 +54,24 @@ const PricingPage: React.FC = () => {
       <div className={styles["pricing-cards"]}>
         <PricingCard
           plan="Básico"
-          price="$9.99/mes"
+          price="€14,99/mes"
           features={[
             "Acceso limitado a funciones",
+            "3 Registros de empleados",
+            "3 Registros de obras",
             "Soporte básico",
-            "1 proyecto activo",
           ]}
           buttonText="Elegir plan"
           onBuy={() => handleBuyPlan("BASICO")}
         />
         <PricingCard
           plan="Premium"
-          price="$19.99/mes"
+          price="€29,99/mes"
           features={[
-            "Funciones ilimitadas",
-            "Soporte premium",
-            "Proyectos ilimitados",
+            "Acceso ilimitado a funciones",
+            "Registros de empleados ilimitados",
+            "Registros de obras ilimitados",
+            "Soporte Premium",
           ]}
           buttonText="Elegir plan"
           onBuy={() => handleBuyPlan("PREMIUM")}
