@@ -12,17 +12,25 @@ import {
   doc,
 } from "firebase/firestore";
 import ExportButtons from "../../components/ExportButtons";
-import styles from "../../styles/FichajesPage.module.css"; // Usamos el CSS Module
+import styles from "../../styles/FichajesPage.module.css";
+
+// 1. Extendemos la interfaz para incluir locationStart / locationEnd
+interface LocationData {
+  latitude: number;
+  longitude: number;
+}
 
 interface Fichaje {
   id: string;
   empresaId: string;
   empleadoId: string;
   type?: string; // "jornada" o "obra"
-  obra: string;
+  obra?: string; // en jornada no existe, en obra sí
   startTime: string;
   endTime: string | null;
   duracion?: number | null;
+  locationStart?: LocationData | null;
+  locationEnd?: LocationData | null;
 }
 
 interface Empleado {
@@ -31,17 +39,11 @@ interface Empleado {
   segundoApellido: string;
 }
 
-interface FichajeWithEmpleado {
-  id: string;
-  empresaId: string;
-  type?: string;
-  obra: string;
-  startTime: string;
-  endTime: string | null;
-  duracion?: number | null;
+interface FichajeWithEmpleado extends Fichaje {
   fullName: string;
 }
 
+// Agrupación
 interface JornadaGroup {
   jornada: FichajeWithEmpleado;
   obras: FichajeWithEmpleado[];
@@ -60,7 +62,8 @@ export default function FichajesPage() {
         setLoading(false);
         return;
       }
-      // Buscamos la empresa del usuario
+
+      // 2. Buscamos la empresa del usuario
       const usersRef = collection(db, "Users");
       const qUsers = query(usersRef, where("uid", "==", currentUser.uid));
       const usersSnap = await getDocs(qUsers);
@@ -78,6 +81,7 @@ export default function FichajesPage() {
           const tasks = snapshot.docs.map(async (docu) => {
             const data = docu.data() as Omit<Fichaje, "id">;
             const fichajeId = docu.id;
+
             let fullName = "N/A";
             if (data.empleadoId) {
               const empRef = doc(db, "Empleados", data.empleadoId);
@@ -87,18 +91,25 @@ export default function FichajesPage() {
                 fullName = `${empData.nombre} ${empData.primerApellido} ${empData.segundoApellido}`.trim();
               }
             }
-            temp.push({
+
+            // 3. Construimos el Fichaje con la location (si existe)
+            const fichajeWithEmpleado: FichajeWithEmpleado = {
               id: fichajeId,
               empresaId: data.empresaId,
+              empleadoId: data.empleadoId,
               type: data.type,
-              // Para fichajes de jornada mostramos "Jornada laboral"
               obra: data.type === "jornada" ? "Jornada laboral" : data.obra,
               startTime: data.startTime,
               endTime: data.endTime || null,
               duracion: data.duracion ?? null,
+              locationStart: data.locationStart || null,
+              locationEnd: data.locationEnd || null,
               fullName,
-            });
+            };
+
+            temp.push(fichajeWithEmpleado);
           });
+
           await Promise.all(tasks);
           setFichajes(temp);
           setLoading(false);
@@ -117,20 +128,17 @@ export default function FichajesPage() {
     switch (sortBy) {
       case "fechaAsc":
         sorted.sort(
-          (a, b) =>
-            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
         );
         break;
       case "fechaDesc":
         sorted.sort(
-          (a, b) =>
-            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
         );
         break;
       default:
         sorted.sort(
-          (a, b) =>
-            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
         );
     }
     return sorted;
@@ -138,7 +146,7 @@ export default function FichajesPage() {
 
   const sortedFichajes = getSortedFichajes();
 
-  // Agrupamos los fichajes por empleado
+  // 4. Agrupamos por empleado
   const groupedByEmployee = sortedFichajes.reduce((acc, fichaje) => {
     if (!acc[fichaje.fullName]) {
       acc[fichaje.fullName] = [];
@@ -147,18 +155,19 @@ export default function FichajesPage() {
     return acc;
   }, {} as Record<string, FichajeWithEmpleado[]>);
 
-  // Dentro de cada empleado, agrupamos los eventos en jornadas y asociamos las obras
+  // Agrupamos jornada - obras
   function groupEventsByJornada(events: FichajeWithEmpleado[]): JornadaGroup[] {
     const groups: JornadaGroup[] = [];
     let currentGroup: JornadaGroup | null = null;
+
     events.forEach((event) => {
       if (event.type === "jornada") {
-        // Inicia una nueva jornada
+        // Nueva jornada
         currentGroup = { jornada: event, obras: [] };
         groups.push(currentGroup);
       } else if (event.type === "obra") {
         if (currentGroup) {
-          // Asociamos la obra a la jornada si ocurre entre la entrada y (si existe) la salida
+          // Solo añadimos la obra si entra en la ventana de la jornada
           if (
             !currentGroup.jornada.endTime ||
             new Date(event.startTime) <= new Date(currentGroup.jornada.endTime)
@@ -182,15 +191,17 @@ export default function FichajesPage() {
     );
   }
 
-  // Arreglo para exportar (formato plano)
+  // 5. Datos para exportar (plano)
   const fichajesForExport = sortedFichajes.map((f) => ({
     id: f.id,
     empresaId: f.empresaId,
     fullName: f.fullName,
-    obra: f.obra,
+    obra: f.obra ?? "",
     startTime: f.startTime,
     endTime: f.endTime,
     duracion: f.duracion,
+    locationStart: f.locationStart,
+    locationEnd: f.locationEnd,
   }));
 
   return (
@@ -213,13 +224,13 @@ export default function FichajesPage() {
 
       <ExportButtons fichajes={fichajesForExport} />
 
-      {/* Agrupamos y mostramos por empleado */}
+      {/* 6. Renderizado final, mostrando la info de localización */}
       {Object.entries(groupedByEmployee).map(([employee, events]) => {
         const sortedEvents = events.sort(
-          (a, b) =>
-            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
         );
         const jornadas = groupEventsByJornada(sortedEvents);
+
         return (
           <div key={employee} className={styles["employee-group"]}>
             <h2>{employee}</h2>
@@ -235,10 +246,42 @@ export default function FichajesPage() {
                       {new Date(group.jornada.startTime).toLocaleString()}
                     </p>
                     <p>
+                      {/* 
+                        Si quieres ver la ubicación en Google Maps, 
+                        basta con un link a https://maps.google.com?q=lat,lng
+                      */}
+                      <strong>Ubicación Entrada:</strong>{" "}
+                      {group.jornada.locationStart ? (
+                        <a
+                          href={`https://www.google.com/maps?q=${group.jornada.locationStart.latitude},${group.jornada.locationStart.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Ver mapa
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </p>
+                    <p>
                       <strong>Salida:</strong>{" "}
                       {group.jornada.endTime
                         ? new Date(group.jornada.endTime).toLocaleString()
                         : "—"}
+                    </p>
+                    <p>
+                      <strong>Ubicación Salida:</strong>{" "}
+                      {group.jornada.locationEnd ? (
+                        <a
+                          href={`https://www.google.com/maps?q=${group.jornada.locationEnd.latitude},${group.jornada.locationEnd.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Ver mapa
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </p>
                     <p>
                       <strong>Duración:</strong>{" "}
@@ -248,38 +291,67 @@ export default function FichajesPage() {
                       hrs
                     </p>
                   </div>
+
                   {group.obras.length > 0 && (
                     <div className={styles["table-responsive"]}>
-                    <table className={styles["obra-table"]}>
-                      <thead>
-                        <tr>
-                          <th>Obra</th>
-                          <th>Entrada</th>
-                          <th>Salida</th>
-                          <th>Duración (hrs)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.obras.map((obraEvent) => (
-                          <tr key={obraEvent.id}>
-                            <td>{obraEvent.obra}</td>
-                            <td>
-                              {new Date(obraEvent.startTime).toLocaleString()}
-                            </td>
-                            <td>
-                              {obraEvent.endTime
-                                ? new Date(obraEvent.endTime).toLocaleString()
-                                : "—"}
-                            </td>
-                            <td>
-                              {obraEvent.duracion
-                                ? obraEvent.duracion.toFixed(2)
-                                : ""}
-                            </td>
+                      <table className={styles["obra-table"]}>
+                        <thead>
+                          <tr>
+                            <th>Obra</th>
+                            <th>Entrada</th>
+                            <th>Ubicación Entrada</th>
+                            <th>Salida</th>
+                            <th>Ubicación Salida</th>
+                            <th>Duración (hrs)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {group.obras.map((obraEvent) => (
+                            <tr key={obraEvent.id}>
+                              <td>{obraEvent.obra}</td>
+                              <td>
+                                {new Date(obraEvent.startTime).toLocaleString()}
+                              </td>
+                              <td>
+                                {obraEvent.locationStart ? (
+                                  <a
+                                    href={`https://www.google.com/maps?q=${obraEvent.locationStart.latitude},${obraEvent.locationStart.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Ver mapa
+                                  </a>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                              <td>
+                                {obraEvent.endTime
+                                  ? new Date(obraEvent.endTime).toLocaleString()
+                                  : "—"}
+                              </td>
+                              <td>
+                                {obraEvent.locationEnd ? (
+                                  <a
+                                    href={`https://www.google.com/maps?q=${obraEvent.locationEnd.latitude},${obraEvent.locationEnd.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Ver mapa
+                                  </a>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                              <td>
+                                {obraEvent.duracion
+                                  ? obraEvent.duracion.toFixed(2)
+                                  : ""}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
