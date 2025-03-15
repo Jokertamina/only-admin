@@ -35,7 +35,7 @@ export default function Home() {
           <h1 className={styles.heroHeading}>Bienvenido a MiProducto</h1>
           <p className={styles.heroDescription}>
             Descubre la solución definitiva para optimizar tus procesos,
-            automatizar tareas y tomar decisiones basadas en datos.
+            automatizar tareas <br /> y tomar decisiones basadas en datos.
           </p>
           <button className={styles.ctaButton} onClick={handleCtaClick}>
             {user ? "Accede al Panel" : "Empieza Ahora"}
@@ -43,7 +43,7 @@ export default function Home() {
         </div>
         <div className={styles.heroImage}>
           <Image
-            src="/images/hero-image.jpg"
+            src="/images/hero-image.webp"
             alt="Vista del producto"
             width={600}
             height={400}
@@ -56,7 +56,7 @@ export default function Home() {
       <section className={styles.featureSection}>
         <div className={styles.featureImage}>
           <Image
-            src="/images/feature-automation.jpg"
+            src="/images/feature-automation.webp"
             alt="Automatización inteligente"
             width={600}
             height={400}
@@ -66,7 +66,7 @@ export default function Home() {
           <h2 className={styles.featureHeading}>Automatización Inteligente</h2>
           <p className={styles.featureDescription}>
             Deja que la inteligencia artificial se encargue de las tareas
-            repetitivas, permitiéndote concentrarte en lo que realmente importa.
+            repetitivas, permitiéndote <br /> concentrarte en lo que realmente importa.
           </p>
         </div>
       </section>
@@ -82,7 +82,7 @@ export default function Home() {
         </div>
         <div className={styles.featureImage}>
           <Image
-            src="/images/feature-integration.jpg"
+            src="/images/feature-integration.webp"
             alt="Integración sin esfuerzo"
             width={600}
             height={400}
@@ -94,7 +94,7 @@ export default function Home() {
       <section className={styles.featureSection}>
         <div className={styles.featureImage}>
           <Image
-            src="/images/feature-analytics.jpg"
+            src="/images/feature-analytics.webp"
             alt="Análisis en tiempo real"
             width={600}
             height={400}

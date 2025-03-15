@@ -52,7 +52,7 @@
 }
 
 .heroImage img {
-  width: 100%;
+  width: 70%;
   border-radius: 8px;
 }
 
@@ -93,7 +93,7 @@
 }
 
 .featureImage img {
-  width: 100%;
+  width: 70%;
   border-radius: 8px;
 }
 
@@ -149,5 +149,15 @@
   }
   .ctaHeading {
     font-size: 2rem;
+  }
+
+  .heroImage img {
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .featureImage img {
+    width: 100%;
+    border-radius: 8px;
   }
 }
