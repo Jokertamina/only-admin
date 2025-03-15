@@ -1,0 +1,105 @@
+/* Footer.module.css */
+.footer {
+    background-color: var(--color-alt-bg); /* Color más definido */
+    padding: 3rem 1.5rem;
+    color: var(--color-text-main);
+    font-size: 1rem;
+  }
+  
+  .footerContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    gap: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Línea separadora */
+  }
+  
+  .footer-brand {
+    display: flex; /* Para evitar que se estire más de la cuenta */
+    align-items: center;
+    padding: 0; 
+    margin: 0;
+    height: 50px; /* Que coincida con el alto del logo */
+  }
+  
+  
+  .logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 60px; /* Ajusta la altura máxima */
+    padding: 0;
+    margin: 0;
+    margin: auto;
+  }
+  
+  .logo-img {
+    width: auto;
+    height: 150px; /* Ajustado */
+    max-width: 100%;
+    display: block;
+  }
+  
+  /* Contacto */
+  .footerContact p {
+    margin: 0.3rem 0;
+  }
+  
+  .footerContact a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  
+  .footerContact a:hover {
+    color: var(--color-secondary);
+  }
+  
+  /* Links legales */
+  .footerLinks ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 1.2rem;
+  }
+  
+  .footerLinks li {
+    font-size: 0.9rem;
+  }
+  
+  .footerLinks a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  
+  .footerLinks a:hover {
+    color: var(--color-text-main);
+  }
+  
+  /* Copyright */
+  .footerCopyright {
+    text-align: center;
+    font-size: 0.85rem;
+    margin-top: 1.5rem;
+    color: var(--color-text-secondary);
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .footerContainer {
+      flex-direction: column;
+      text-align: center;
+    }
+  
+    .footerLinks ul {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+  

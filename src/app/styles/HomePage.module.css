@@ -1,7 +1,5 @@
 /* HomePage.module.css */
 
-
-
 .homeContainer {
   display: flex;
   flex-direction: column;
@@ -59,7 +57,8 @@
 }
 
 /* Feature Sections */
-.featureSection, .featureSectionReverse {
+.featureSection,
+.featureSectionReverse {
   display: flex;
   align-items: center;
   padding: 3rem 2rem;
@@ -83,10 +82,14 @@
 
 .featureContent {
   flex: 1;
+  /* Por defecto, en pantallas grandes: el texto va en el orden que marca el HTML */
+  order: 1;
 }
 
 .featureImage {
   flex: 1;
+  /* Por defecto, en pantallas grandes: la imagen sigue el orden natural del HTML */
+  order: 2;
 }
 
 .featureImage img {
@@ -121,6 +124,26 @@
     flex-direction: column;
     text-align: center;
   }
+
+  /* Para la sección hero, invertimos la imagen y el texto si quieres la imagen primero */
+  .heroContent {
+    order: 2;
+  }
+  .heroImage {
+    order: 1;
+  }
+
+  /* Para las secciones de funcionalidades, ajustamos el orden */
+  .featureSection .featureContent,
+  .featureSectionReverse .featureContent {
+    order: 1; /* texto primero */
+  }
+  .featureSection .featureImage,
+  .featureSectionReverse .featureImage {
+    order: 2; /* imagen después */
+  }
+
+  /* Ajustes de tamaño de fuente en mobile */
   .heroHeading {
     font-size: 2.5rem;
   }
