@@ -9,7 +9,6 @@ import styles from "./styles/HomePage.module.css";
 
 export default function Home() {
   const router = useRouter();
-  // Evitamos "any" y usamos User | null
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -20,103 +19,109 @@ export default function Home() {
   }, []);
 
   const handleCtaClick = () => {
-    if (user) {
-      router.push("/admin");
-    } else {
-      router.push("/login");
-    }
+    router.push(user ? "/admin" : "/login");
   };
 
   return (
     <main className={styles.homeContainer}>
-      {/* Hero Section */}
+      {/* Hero */}
       <section className={styles.heroSection}>
         <div className={styles.heroContent}>
-          <h1 className={styles.heroHeading}>Bienvenido a MiProducto</h1>
+          <h1 className={styles.heroHeading}>
+            SYMCROX: Control de fichajes y optimización de obras
+          </h1>
           <p className={styles.heroDescription}>
-            Descubre la solución definitiva para optimizar tus procesos,
-            automatizar tareas <br /> y tomar decisiones basadas en datos.
+            Gestiona fichajes desde Telegram o WhatsApp, controla costes y optimiza presupuestos en tiempo real. La solución preferida por autónomos y empresas.
           </p>
           <button className={styles.ctaButton} onClick={handleCtaClick}>
-            {user ? "Accede al Panel" : "Empieza Ahora"}
+            {user ? "Accede al Panel de Control" : "Pruébalo Gratis Ahora"}
           </button>
         </div>
         <div className={styles.heroImage}>
           <Image
-            src="/images/hero-image.webp"
-            alt="Vista del producto"
-            width={600}
-            height={400}
-            // Ajusta los valores width/height según tus imágenes
+            src="/images/bot-image.svg"
+            alt="Gestión inteligente con SYMCROX"
+            width={700}
+            height={500}
+            quality={100}
+            priority
+            draggable={false} // Evita arrastrar la imagen
+            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
           />
         </div>
       </section>
 
-      {/* Funcionalidad 1: Automatización */}
+      {/* Feature 1 */}
       <section className={styles.featureSection}>
         <div className={styles.featureImage}>
           <Image
-            src="/images/feature-automation.webp"
-            alt="Automatización inteligente"
+            src="/images/feature-automation.svg"
+            alt="Fichaje móvil rápido con Telegram y WhatsApp"
             width={600}
-            height={400}
+            height={450}
+            draggable={false} // Evita arrastrar la imagen
+            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
           />
         </div>
         <div className={styles.featureContent}>
-          <h2 className={styles.featureHeading}>Automatización Inteligente</h2>
+          <h2 className={styles.featureHeading}>Fichajes rápidos desde el móvil</h2>
           <p className={styles.featureDescription}>
-            Deja que la inteligencia artificial se encargue de las tareas
-            repetitivas, permitiéndote <br /> concentrarte en lo que realmente importa.
+            Simplifica el registro de horarios desde cualquier lugar. Evita errores, olvídate del papeleo y asegúrate de cumplir con la legislación vigente.
           </p>
         </div>
       </section>
 
-      {/* Funcionalidad 2: Integración sin esfuerzo */}
+      {/* Feature 2 */}
       <section className={styles.featureSectionReverse}>
-        <div className={styles.featureContent}>
-          <h2 className={styles.featureHeading}>Integración Sin Esfuerzo</h2>
-          <p className={styles.featureDescription}>
-            Conecta tus sistemas existentes de forma rápida y segura gracias a
-            nuestra API robusta y flexible.
-          </p>
-        </div>
         <div className={styles.featureImage}>
           <Image
-            src="/images/feature-integration.webp"
-            alt="Integración sin esfuerzo"
+            src="/images/feature-integration.svg"
+            alt="Gestión centralizada de proyectos"
             width={600}
-            height={400}
+            height={450}
+            draggable={false} // Evita arrastrar la imagen
+            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
           />
+        </div>
+
+        <div className={styles.featureContent}>
+          <h2 className={styles.featureHeading}>Gestión integrada de proyectos y empleados</h2>
+          <p className={styles.featureDescription}>
+            Centraliza información clave de todas tus obras en un solo lugar. Administra equipos, calcula costes precisos y mejora la rentabilidad de cada proyecto.
+          </p>
         </div>
       </section>
 
-      {/* Funcionalidad 3: Análisis en tiempo real */}
+      {/* Feature 3 */}
       <section className={styles.featureSection}>
         <div className={styles.featureImage}>
           <Image
-            src="/images/feature-analytics.webp"
-            alt="Análisis en tiempo real"
+            src="/images/feature-analytics.svg"
+            alt="Análisis en tiempo real con SYMCROX"
             width={600}
-            height={400}
+            height={450}
+            draggable={false} // Evita arrastrar la imagen
+            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
           />
         </div>
         <div className={styles.featureContent}>
-          <h2 className={styles.featureHeading}>Datos y Análisis</h2>
+          <h2 className={styles.featureHeading}>Analítica precisa para decisiones inteligentes</h2>
           <p className={styles.featureDescription}>
-            Accede a informes detallados y toma decisiones informadas con datos
-            precisos y actualizados en tiempo real.
+            Visualiza informes detallados en tiempo real. Identifica desviaciones, optimiza tiempos, reduce costes y aumenta la competitividad de tu negocio.
           </p>
         </div>
       </section>
 
       {/* CTA Final */}
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaHeading}>Da el Siguiente Paso Hacia la Innovación</h2>
+        <h2 className={styles.ctaHeading}>
+          Convierte el control del tiempo en tu ventaja competitiva
+        </h2>
         <p className={styles.ctaDescription}>
-          Únete a las empresas que ya están transformando su forma de trabajar.
+          Únete a los negocios inteligentes que optimizan su gestión diaria con SYMCROX. Empieza hoy mismo, ¡sin compromiso!
         </p>
         <button className={styles.ctaButton} onClick={handleCtaClick}>
-          {user ? "Accede al Panel" : "Empieza Ahora"}
+          {user ? "Ir al Panel" : "Regístrate Gratis"}
         </button>
       </section>
     </main>

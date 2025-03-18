@@ -1,0 +1,22 @@
+import { MetadataRoute } from "next";
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    {
+      url: "https://symcrox.com/",
+      lastModified: new Date().toISOString(),
+    },
+    {
+      url: "https://symcrox.com/blog",
+      lastModified: new Date().toISOString(),
+    },
+    {
+      url: "https://symcrox.com/contacto",
+      lastModified: new Date().toISOString(),
+    },
+    {
+      url: "https://symcrox.com/servicios",
+      lastModified: new Date().toISOString(),
+    },
+  ];
+}

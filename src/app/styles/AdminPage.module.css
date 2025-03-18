@@ -4,7 +4,7 @@
   flex-direction: column;
   align-items: center;
   min-height: 80vh;
-  padding: 2rem;
+  padding: 0 2rem;
   background-color: var(--color-base-bg);
   text-align: center;
 }
@@ -14,6 +14,7 @@
   color: var(--color-primary);
   margin-bottom: 1rem;
   text-align: center;
+  margin-top: 0;
 }
 
 .admin-page-welcome {
@@ -26,7 +27,7 @@
 
  .admin-page-info {
   margin-top: 2rem;
-  padding: 1rem;
+  padding: 0 1rem;
   background-color: var(--color-alt-bg);
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -39,7 +40,6 @@
   font-size: 1.8rem;
   color: var(--color-danger);
   margin-bottom: 1rem;
-  margin-top: 60px;
 }
 
 .admin-page-list {
@@ -56,6 +56,48 @@
 }
 
 /* Sección para compartir el bot */
+
+.admin-page-share-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-radius: 8px;
+  gap: 20px;
+}
+
+.admin-page-share-content {
+  flex: 1; /* Ocupa el espacio disponible */
+}
+
+.admin-page-share-title {
+  margin-bottom: 10px;
+}
+
+.admin-page-share-trigger {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.admin-page-share-trigger:hover {
+  background-color: #0056b3;
+}
+
+.admin-page-share-image {
+  flex-shrink: 0; /* Evita que la imagen se reduzca */
+}
+
+.bot-image {
+  width: 140px; /* Ajusta el tamaño de la imagen */
+  height: auto;
+  border-radius: 10px;
+}
+
 .admin-page-share {
   margin-top: 2rem;
   padding: 1rem;

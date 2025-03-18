@@ -26,6 +26,7 @@ interface Empresa {
   nif?: string;
   contactPhone?: string | null;
   plan?: PlanType;
+  subscriptionId?: string;
 }
 
 export default function EmpresasPage() {
@@ -143,6 +144,59 @@ export default function EmpresasPage() {
       console.error("Error al crear la empresa:", err);
     }
   };
+
+  // SOLO ESTA FUNCIÓN AÑADIDA PARA CANCELAR SUSCRIPCIÓN
+  const handleCancelSubscription = async () => {
+    if (!empresa?.subscriptionId) {
+      alert("No tienes una suscripción activa.");
+      return;
+    }
+
+    if (!confirm("¿Estás seguro que deseas cancelar la suscripción? Continuará activa hasta el fin del periodo actual.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Suscripción cancelada correctamente. Seguirá activa hasta finalizar el periodo actual.");
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (err) {
+      console.error("Error al cancelar la suscripción:", err);
+      alert("Error inesperado al cancelar la suscripción.");
+    }
+  };
+
+  if (loading) {
+    return <p className={styles["empresas-loading"]}>Cargando empresa...</p>;
+  }
+
+  if (!empresa) {
+    return (
+      <main className={styles["empresas-container"]}>
+        <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
+        {!showRegisterForm ? (
+          <div>
+            <p>No se encontró la empresa asociada a este usuario.</p>
+            <button
+              className={styles["empresas-btn-register"]}
+              onClick={() => setShowRegisterForm(true)}
+            >
+              Registrar Empresa
+            </button>
+          </div>
+        ) : null}
+      </main>
+    );
+  }
 
   // RENDER
   if (loading) {
@@ -335,6 +389,16 @@ export default function EmpresasPage() {
           </div>
         </section>
       )}
+
+      {/* SOLO ESTE BOTÓN AÑADIDO */}
+      <div className={styles["empresas-subscription-container"]}>
+            <button
+              className={styles["empresas-btn-cancel-subscription"]}
+              onClick={handleCancelSubscription}
+            >
+              Cancelar Suscripción
+            </button>
+          </div>
     </main>
   );
 }

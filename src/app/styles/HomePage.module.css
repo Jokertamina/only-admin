@@ -1,68 +1,62 @@
-/* HomePage.module.css */
-
 .homeContainer {
   display: flex;
   flex-direction: column;
   width: 100%;
-  background: var(--gradient-bg);
+  background: linear-gradient(135deg, #f0f7ff, #ffffff);
+  font-family: 'Inter', sans-serif;
 }
 
 /* Hero */
 .heroSection {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 4rem 2rem;
-  gap: 2rem;
-}
-
-.heroContent {
-  flex: 1;
+  align-items: center;
+  padding: 4rem 6rem;
+  gap: 3rem;
 }
 
 .heroHeading {
-  font-size: 3rem;
-  color: var(--color-primary);
-  margin-bottom: 1rem;
+  font-size: 3.2rem;
+  color: #374151;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
 }
 
 .heroDescription {
-  font-size: 1.2rem;
-  color: var(--color-text-main);
-  margin-bottom: 2rem;
+  font-size: 1.3rem;
+  color: #4b5563;
+  margin-bottom: 2.5rem;
 }
 
 .ctaButton {
-  background-color: var(--color-primary);
+  background-color: #6366f1;
   color: #fff;
-  border: none;
   border-radius: 8px;
-  padding: 1rem 2rem;
+  padding: 0.9rem 1.8rem;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .ctaButton:hover {
-  background-color: var(--color-secondary);
+  background-color: #4f46e5;
 }
 
-.heroImage {
-  flex: 1;
+.heroImage img, .featureImage img {
+  width: 100%;
+  height: auto;
+  max-width: 700px;
+  border-radius: 12px;
 }
 
-.heroImage img {
-  width: 70%;
-  border-radius: 8px;
-}
-
-/* Feature Sections */
+/* Features */
 .featureSection,
 .featureSectionReverse {
   display: flex;
   align-items: center;
-  padding: 3rem 2rem;
-  gap: 2rem;
+  justify-content: space-between;
+  padding: 4rem 6rem;
+  gap: 3rem;
 }
 
 .featureSectionReverse {
@@ -70,94 +64,59 @@
 }
 
 .featureHeading {
-  font-size: 2rem;
-  color: var(--color-primary);
-  margin-bottom: 1rem;
+  font-size: 2.4rem;
+  color: #111827;
+  margin-bottom: 1.5rem;
 }
 
 .featureDescription {
-  font-size: 1.1rem;
-  color: var(--color-text-main);
+  font-size: 1.2rem;
+  color: #6b7280;
+  line-height: 1.7;
 }
 
-.featureContent {
-  flex: 1;
-  /* Por defecto, en pantallas grandes: el texto va en el orden que marca el HTML */
-  order: 1;
-}
-
-.featureImage {
-  flex: 1;
-  /* Por defecto, en pantallas grandes: la imagen sigue el orden natural del HTML */
-  order: 2;
-}
-
-.featureImage img {
-  width: 70%;
-  border-radius: 8px;
-}
-
-/* CTA Section */
+/* CTA */
 .ctaSection {
   text-align: center;
-  padding: 3rem 2rem;
-  background-color: #f7f7f7;
+  padding: 4rem 2rem;
+  background: #f3f4f6;
 }
 
 .ctaHeading {
-  font-size: 2.5rem;
-  color: var(--color-primary);
+  font-size: 2.8rem;
+  color: #111827;
   margin-bottom: 1rem;
 }
 
 .ctaDescription {
-  font-size: 1.2rem;
-  color: var(--color-text-main);
+  font-size: 1.3rem;
+  color: #374151;
   margin-bottom: 2rem;
 }
 
-/* Responsive */
+/* Full Responsive */
 @media (max-width: 768px) {
   .heroSection,
   .featureSection,
   .featureSectionReverse {
     flex-direction: column;
     text-align: center;
+    padding: 3rem 2rem;
   }
 
-  /* Para la sección hero, invertimos la imagen y el texto si quieres la imagen primero */
-  .heroContent {
-    order: 2;
-  }
-  .heroImage {
-    order: 1;
-  }
-
-  /* Para las secciones de funcionalidades, ajustamos el orden */
-  .featureSection .featureContent,
-  .featureSectionReverse .featureContent {
-    order: 1; /* texto primero */
-  }
-  .featureSection .featureImage,
-  .featureSectionReverse .featureImage {
-    order: 2; /* imagen después */
-  }
-
-  /* Ajustes de tamaño de fuente en mobile */
   .heroHeading {
     font-size: 2.5rem;
   }
-  .ctaHeading {
+
+  .featureHeading, .ctaHeading {
     font-size: 2rem;
   }
 
-  .heroImage img {
-    width: 100%;
-    border-radius: 8px;
+  .heroDescription, .featureDescription, .ctaDescription {
+    font-size: 1.1rem;
   }
 
-  .featureImage img {
-    width: 100%;
-    border-radius: 8px;
+  .heroImage img, .featureImage img {
+    max-width: 100%;
   }
 }

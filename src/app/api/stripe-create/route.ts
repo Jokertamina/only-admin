@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
         {
           price:
             plan === "PREMIUM"
-              ? "price_1Qz0I14PJGQ0KjHcFhMKlbiH"
-              : "price_1Qz0HF4PJGQ0KjHcNAIjxbC8",
+              ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+              : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
           quantity: 1,
         },
       ],

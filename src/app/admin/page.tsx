@@ -47,7 +47,7 @@ function ShareModal({ botUrl, onClose }: ShareModalProps) {
             href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
               "¡Este es el bot para los fichajes!\n" + botUrl
             )}`}
-            
+
             target="_blank"
             rel="noopener noreferrer"
             className={styles["share-button"]}
@@ -132,19 +132,41 @@ const AdminPage = () => {
           En este panel encontrarás herramientas para gestionar tu empresa, administrar usuarios, configurar planes y monitorizar la actividad de tus proyectos. Utiliza el menú lateral para navegar entre las secciones.
         </p>
       </section>
-      {/* Sección para compartir el enlace del bot */}
-      <section className={styles["admin-page-share"]}>
-        <h3 className={styles["admin-page-share-title"]}>Bot para enviar a tus empleados</h3>
-        <button
-          onClick={() => setShowShareModal(true)}
-          className={styles["admin-page-share-trigger"]}
-        >
-          Compartir Enlace
-        </button>
-      </section>
+     {/* Sección para compartir el enlace del bot */}
+<section className={styles["admin-page-share-container"]}>
+  {/* Contenedor izquierdo: Imagen del bot */}
+  <div className={styles["admin-page-share-image"]}>
+  <img
+    src="/images/bot-image.svg"
+    alt="Bot"
+    className={styles["bot-image"]}
+    draggable={false} // Evita que la imagen se arrastre
+    onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
+  />
+</div>
+
+
+  {/* Contenedor derecho: Texto y botón */}
+  <div className={styles["admin-page-share-content"]}>
+    <h3 className={styles["admin-page-share-title"]}>
+      Bot para enviar a tus empleados
+    </h3>
+    <button
+      onClick={() => setShowShareModal(true)}
+      className={styles["admin-page-share-trigger"]}
+    >
+      Compartir Enlace
+    </button>
+  </div>
+</section>
+
+
+
+      {/* Modal para compartir el enlace */}
       {showShareModal && (
         <ShareModal botUrl={botUrl} onClose={() => setShowShareModal(false)} />
       )}
+
     </main>
   );
 };
