@@ -106,5 +106,12 @@
 
 .card-button:hover {
   background: var(--color-secondary);
-  transform: scale(1.05);
 }
+
+/* Estilos para el botón deshabilitado (plan actual) */
+.card-button-disabled {
+  background-color: var(--color-secondary);
+  cursor: default;
+}
+
+

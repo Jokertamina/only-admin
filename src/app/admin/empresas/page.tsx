@@ -1,3 +1,5 @@
+//src/app/admin/empresas/page.tsx
+
 "use client"; // Indica que este componente usa hooks en Next.js 13
 
 import { useEffect, useState } from "react";

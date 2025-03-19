@@ -1,11 +1,18 @@
 // src/context/EmpresaContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../../lib/firebaseConfig";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, onSnapshot } from "firebase/firestore";
+
+// Define la interfaz para la data de la empresa (ajústala según tus campos)
+interface EmpresaData {
+  plan?: string;
+  // Agrega aquí otros campos que necesites...
+}
 
 interface EmpresaContextProps {
   empresaId: string | null;
   loading: boolean;
+  empresaData: EmpresaData | null;
 }
 
 interface EmpresaProviderProps {
@@ -15,11 +22,13 @@ interface EmpresaProviderProps {
 const EmpresaContext = createContext<EmpresaContextProps>({
   empresaId: null,
   loading: true,
+  empresaData: null,
 });
 
 export const EmpresaProvider: React.FC<EmpresaProviderProps> = ({ children }) => {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [empresaData, setEmpresaData] = useState<EmpresaData | null>(null);
 
   // Función para cargar el empresaId a partir del uid del usuario
   const loadEmpresaId = async (uid: string) => {
@@ -57,12 +66,27 @@ export const EmpresaProvider: React.FC<EmpresaProviderProps> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
+  // Suscribimos en tiempo real al documento de la Empresa para obtener más datos (por ejemplo, plan)
   useEffect(() => {
-    console.log("[EmpresaProvider] empresaId:", empresaId, "loading:", loading);
-  }, [empresaId, loading]);
+    if (empresaId) {
+      const empresaRef = doc(db, "Empresas", empresaId);
+      const unsubscribe = onSnapshot(empresaRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setEmpresaData(docSnap.data() as EmpresaData);
+        } else {
+          setEmpresaData(null);
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [empresaId]);
+
+  useEffect(() => {
+    console.log("[EmpresaProvider] empresaId:", empresaId, "loading:", loading, "empresaData:", empresaData);
+  }, [empresaId, loading, empresaData]);
 
   return (
-    <EmpresaContext.Provider value={{ empresaId, loading }}>
+    <EmpresaContext.Provider value={{ empresaId, loading, empresaData }}>
       {children}
     </EmpresaContext.Provider>
   );

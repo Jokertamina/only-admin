@@ -3,6 +3,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
+// IMPORTA FIRESTORE
+import { db } from "../../../lib/firebaseConfig";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia",
 });
@@ -31,10 +35,36 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // 1) Obtenemos el doc de la empresa en Firestore
+    const empresaRef = doc(db, "Empresas", empresaId);
+    const empresaSnap = await getDoc(empresaRef);
+
+    let stripeCustomerId: string | undefined;
+
+    if (empresaSnap.exists()) {
+      // Leemos si ya existe el campo stripeCustomerId
+      stripeCustomerId = empresaSnap.data().stripeCustomerId;
+    }
+
+    // 2) Si no existe, creamos un nuevo customer en Stripe y lo guardamos
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        // Si tienes el email en Firestore, podrías pasarlo aquí:
+        // email: empresaSnap.data()?.email || undefined,
+        metadata: {
+          empresaId,
+        },
+      });
+      stripeCustomerId = customer.id;
+      await updateDoc(empresaRef, { stripeCustomerId });
+    }
+
+    // 3) Creamos la sesión de Checkout asociada al customer existente o recién creado
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
       cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+      customer: stripeCustomerId, // Usamos el mismo cliente
       line_items: [
         {
           price:

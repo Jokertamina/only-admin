@@ -1,6 +1,6 @@
 "use client"; // Necesario para usar useState y useEffect
 
-import styles from "../styles/PricingCard.module.css"; // Importamos los estilos como CSS Modules
+import styles from "../styles/PricingCard.module.css";
 
 interface PricingCardProps {
   plan: string;
@@ -8,6 +8,7 @@ interface PricingCardProps {
   features: string[];
   buttonText: string;
   onBuy?: () => void;
+  disabled?: boolean;
 }
 
 export default function PricingCard({
@@ -16,6 +17,7 @@ export default function PricingCard({
   features,
   buttonText,
   onBuy,
+  disabled = false,
 }: PricingCardProps) {
   return (
     <div className={styles["pricing-card"]}>
@@ -29,8 +31,11 @@ export default function PricingCard({
         ))}
       </ul>
       <button
-        className={styles["card-button"]}
-        onClick={() => onBuy && onBuy()}
+        className={`${styles["card-button"]} ${
+          disabled ? styles["card-button-disabled"] : ""
+        }`}
+        disabled={disabled}
+        onClick={!disabled ? onBuy : undefined}
       >
         {buttonText}
       </button>
