@@ -1,6 +1,8 @@
 /* EmpresasPage.module.css - Diseño avanzado y responsive */
 
-/* Contenedor principal */
+/* ===================== */
+/* Base Styles           */
+/* ===================== */
 .empresas-container {
   min-height: 100vh;
   padding: 2rem 1rem;
@@ -25,7 +27,9 @@
   font-weight: bold;
 }
 
-/* Mensaje de carga */
+/* ===================== */
+/* Mensajes y Carga      */
+/* ===================== */
 .empresas-loading {
   font-size: 1.2rem;
   color: var(--color-text-secondary);
@@ -33,7 +37,9 @@
   margin-top: 2rem;
 }
 
-/* Sección de formulario */
+/* ===================== */
+/* Formularios y Contenido*/
+/* ===================== */
 .empresas-form {
   background-color: var(--color-alt-bg);
   border-radius: 12px;
@@ -41,10 +47,9 @@
   padding: 2rem;
   width: 100%;
   max-width: 600px;
-  margin-bottom: 2rem; /* Espacio extra al final */
+  margin-bottom: 2rem;
 }
 
-/* Grupo de inputs */
 .empresas-input-group {
   display: flex;
   flex-direction: column;
@@ -81,7 +86,9 @@
   color: var(--color-text-secondary);
 }
 
-/* Botones */
+/* ===================== */
+/* Botones               */
+/* ===================== */
 .empresas-btn-group {
   display: flex;
   gap: 1rem;
@@ -98,7 +105,7 @@
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
-  margin-top: 1rem; /* Un poco de espacio arriba para no pegar al form */
+  margin-top: 1rem;
 }
 
 /* Botón Guardar */
@@ -131,7 +138,7 @@
   background-color: var(--color-secondary);
 }
 
-/* Botón Registrar (escenario: no hay empresa) */
+/* Botón Registrar */
 .empresas-btn-register {
   background-color: var(--color-primary);
   color: #fff;
@@ -140,7 +147,9 @@
   background-color: var(--color-secondary);
 }
 
-/* Sección de visualización (modo lectura) */
+/* ===================== */
+/* Modo Lectura          */
+/* ===================== */
 .empresas-info-container {
   background-color: var(--color-alt-bg);
   border-radius: 12px;
@@ -150,7 +159,6 @@
   max-width: 800px;
 }
 
-/* Tabla responsiva */
 .table-responsive {
   width: 100%;
   overflow-x: auto;
@@ -160,7 +168,7 @@
 .empresas-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 600px; /* Asegura scroll si el contenedor es muy pequeño */
+  min-width: 600px;
 }
 
 .empresas-table th,
@@ -181,6 +189,9 @@
   background-color: var(--color-alt-bg);
 }
 
+/* ===================== */
+/* Sección Suscripción   */
+/* ===================== */
 .empresas-subscription-container {
   margin-top: 1.5rem;
   text-align: center;
@@ -202,14 +213,46 @@
   background-color: #c0392b;
 }
 
-/* Estilos para el Modal */
+/* Estilos para la Información de Suscripción */
+.subscription-info {
+  background-color: var(--color-alt-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 800px;
+  text-align: left;
+  color: var(--color-text-main);
+}
+
+.subscription-info h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.subscription-info p {
+  font-size: 1rem;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+}
+
+.subscription-info strong {
+  color: var(--color-secondary);
+}
+
+/* ===================== */
+/* Modal Styles          */
+/* ===================== */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Fondo semitransparente */
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -267,9 +310,10 @@
   opacity: 0.9;
 }
 
+/* ===================== */
+/* Responsive Breakpoints*/
+/* ===================== */
 
-
-/* Breakpoints */
 /* Escritorio grande (hasta 1024px) */
 @media (max-width: 1024px) {
   .empresas-title {
@@ -285,7 +329,8 @@
 /* Tablet y pantallas medianas (hasta 768px) */
 @media (max-width: 768px) {
   .empresas-form,
-  .empresas-info-container {
+  .empresas-info-container,
+  .subscription-info {
     padding: 1.5rem;
   }
   .empresas-title {
@@ -295,9 +340,13 @@
   .empresas-btn-save,
   .empresas-btn-cancel,
   .empresas-btn-edit,
-  .empresas-btn-register {
+  .empresas-btn-register,
+  .empresas-btn-cancel-subscription {
     font-size: 0.9rem;
     padding: 0.5rem 1rem;
+  }
+  .subscription-info h2 {
+    font-size: 1.6rem;
   }
 }
 
@@ -312,5 +361,8 @@
   .empresas-table th,
   .empresas-table td {
     font-size: 0.8rem;
+  }
+  .subscription-info h2 {
+    font-size: 1.4rem;
   }
 }

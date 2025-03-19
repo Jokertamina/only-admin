@@ -257,7 +257,6 @@ export default function EmpresasPage() {
                 "Suscripción cancelada correctamente. Seguirá activa hasta finalizar el periodo actual.",
               onConfirm: () => setModalData(null),
             });
-            // Aquí podrías actualizar la info de la suscripción (p.ej., guardar la fecha de expiración)
           } else {
             setModalData({
               isOpen: true,
@@ -282,6 +281,7 @@ export default function EmpresasPage() {
     });
   };
 
+  // Verificamos una sola vez el estado de carga y si existe la empresa
   if (loading) {
     return <p className={styles["empresas-loading"]}>Cargando empresa...</p>;
   }
@@ -413,17 +413,6 @@ export default function EmpresasPage() {
         </section>
       )}
 
-      {/* Botón para cancelar suscripción */}
-      <div className={styles["empresas-subscription-container"]}>
-        <button
-          className={styles["empresas-btn-cancel-subscription"]}
-          onClick={handleCancelSubscription}
-        >
-          Cancelar Suscripción
-        </button>
-      </div>
-
-      {/* Mostrar información de la suscripción, si existe */}
       {empresa.subscriptionData && (
         <div className={styles["subscription-info"]}>
           <h2>Información de Suscripción</h2>
@@ -442,10 +431,18 @@ export default function EmpresasPage() {
           <p>
             <strong>Estado:</strong> {empresa.subscriptionData.status || "N/A"}
           </p>
+          {/* Botón para cancelar suscripción */}
+          <div className={styles["empresas-subscription-container"]}>
+            <button
+              className={styles["empresas-btn-cancel-subscription"]}
+              onClick={handleCancelSubscription}
+            >
+              Cancelar Suscripción
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Renderiza el modal si está activo */}
       {modalData && modalData.isOpen && (
         <CustomModal
           isOpen={modalData.isOpen}
