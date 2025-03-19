@@ -1,3 +1,5 @@
+//src/app/api/stripe-create-custom/route.tsx
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "../../../lib/firebaseConfig";
