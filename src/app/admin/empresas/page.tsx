@@ -12,7 +12,7 @@ import {
   addDoc,
   updateDoc,
 } from "firebase/firestore";
-import styles from "../../styles/EmpresasPage.module.css"; // Importa el CSS Module
+import styles from "../../styles/EmpresasPage.module.css";
 
 // Definimos un tipo para el plan
 type PlanType = "SIN_PLAN" | "BASICO" | "PREMIUM";
@@ -103,6 +103,9 @@ export default function EmpresasPage() {
     onCancel?: () => void;
   } | null>(null);
 
+  // ==========================
+  //     Carga la Empresa
+  // ==========================
   useEffect(() => {
     async function fetchEmpresaForUser() {
       const currentUser = auth.currentUser;
@@ -134,7 +137,9 @@ export default function EmpresasPage() {
     fetchEmpresaForUser();
   }, []);
 
-  // Obtiene datos de la suscripción si existe un subscriptionId
+  // ==========================
+  //   Datos de Suscripción
+  // ==========================
   useEffect(() => {
     async function fetchSubscriptionDetails() {
       if (empresa?.subscriptionId) {
@@ -142,9 +147,7 @@ export default function EmpresasPage() {
           const res = await fetch(`/api/subscription-details?subscriptionId=${empresa.subscriptionId}`);
           const data = await res.json();
           if (data.success && data.subscriptionData) {
-            setEmpresa((prev) =>
-              prev ? { ...prev, subscriptionData: data.subscriptionData } : prev
-            );
+            setEmpresa((prev) => (prev ? { ...prev, subscriptionData: data.subscriptionData } : prev));
           }
         } catch (err) {
           console.error("Error al obtener datos de la suscripción:", err);
@@ -154,7 +157,9 @@ export default function EmpresasPage() {
     fetchSubscriptionDetails();
   }, [empresa?.subscriptionId]);
 
-  // EDITAR EMPRESA
+  // ==========================
+  //   Edición de la Empresa
+  // ==========================
   const handleEdit = () => {
     if (empresa) {
       setFormData({
@@ -186,7 +191,9 @@ export default function EmpresasPage() {
     }
   };
 
-  // REGISTRAR NUEVA EMPRESA
+  // ==========================
+  //  Registro de Empresa
+  // ==========================
   const handleNewEmpresaChange = (field: keyof typeof newEmpresaData, value: string) => {
     setNewEmpresaData((prev) => ({
       ...prev,
@@ -219,7 +226,9 @@ export default function EmpresasPage() {
     }
   };
 
-  // FUNCIÓN PARA CANCELAR SUSCRIPCIÓN CON MODAL
+  // ==========================
+  //  Cancelar Suscripción
+  // ==========================
   const handleCancelSubscription = async () => {
     if (!empresa?.subscriptionId) {
       setModalData({
@@ -281,7 +290,9 @@ export default function EmpresasPage() {
     });
   };
 
-  // Verificamos una sola vez el estado de carga y si existe la empresa
+  // ==========================
+  //  Loading y Sin Empresa
+  // ==========================
   if (loading) {
     return <p className={styles["empresas-loading"]}>Cargando empresa...</p>;
   }
@@ -290,6 +301,8 @@ export default function EmpresasPage() {
     return (
       <main className={styles["empresas-container"]}>
         <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
+
+        {/* Si no hay empresa, mostramos o no el formulario según el estado */}
         {!showRegisterForm ? (
           <div>
             <p>No se encontró la empresa asociada a este usuario.</p>
@@ -300,11 +313,77 @@ export default function EmpresasPage() {
               Registrar Empresa
             </button>
           </div>
-        ) : null}
+        ) : (
+          <section className={styles["empresas-form"]}>
+            <h2 className={styles["empresas-title"]}>Registra tu Empresa</h2>
+            <div className={styles["empresas-input-group"]}>
+              <label className={styles["empresas-label"]} htmlFor="nombre">
+                Nombre
+              </label>
+              <input
+                id="nombre"
+                type="text"
+                className={styles["empresas-input"]}
+                value={newEmpresaData.nombre}
+                onChange={(e) => handleNewEmpresaChange("nombre", e.target.value)}
+              />
+            </div>
+            <div className={styles["empresas-input-group"]}>
+              <label className={styles["empresas-label"]} htmlFor="domicilio">
+                Domicilio
+              </label>
+              <input
+                id="domicilio"
+                type="text"
+                className={styles["empresas-input"]}
+                value={newEmpresaData.domicilio}
+                onChange={(e) => handleNewEmpresaChange("domicilio", e.target.value)}
+              />
+            </div>
+            <div className={styles["empresas-input-group"]}>
+              <label className={styles["empresas-label"]} htmlFor="nif">
+                NIF / CIF
+              </label>
+              <input
+                id="nif"
+                type="text"
+                className={styles["empresas-input"]}
+                value={newEmpresaData.nif}
+                onChange={(e) => handleNewEmpresaChange("nif", e.target.value)}
+              />
+            </div>
+            <div className={styles["empresas-input-group"]}>
+              <label className={styles["empresas-label"]} htmlFor="contactPhone">
+                Teléfono de Contacto
+              </label>
+              <input
+                id="contactPhone"
+                type="tel"
+                className={styles["empresas-input"]}
+                value={newEmpresaData.contactPhone}
+                onChange={(e) => handleNewEmpresaChange("contactPhone", e.target.value)}
+              />
+            </div>
+            <div className={styles["empresas-btn-group"]}>
+              <button onClick={handleCreateNewEmpresa} className={styles["empresas-btn-save"]}>
+                Crear Empresa
+              </button>
+              <button
+                onClick={() => setShowRegisterForm(false)}
+                className={styles["empresas-btn-cancel"]}
+              >
+                Cancelar
+              </button>
+            </div>
+          </section>
+        )}
       </main>
     );
   }
 
+  // ==========================
+  //  Función auxiliar
+  // ==========================
   const getPlanLabel = (plan: PlanType | undefined) => {
     switch (plan) {
       case "BASICO":
@@ -316,12 +395,16 @@ export default function EmpresasPage() {
     }
   };
 
+  // ==========================
+  //  Render Empresa
+  // ==========================
   return (
     <main className={styles["empresas-container"]}>
       <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
       <p className={styles["empresa-description"]}>
         Consulta la información sobre tu empresa.
       </p>
+
       {editMode ? (
         <section className={styles["empresas-form"]}>
           <div className={styles["empresas-input-group"]}>
@@ -413,6 +496,7 @@ export default function EmpresasPage() {
         </section>
       )}
 
+      {/* Si existe información de la suscripción */}
       {empresa.subscriptionData && (
         <div className={styles["subscription-info"]}>
           <h2>Información de Suscripción</h2>
@@ -431,6 +515,7 @@ export default function EmpresasPage() {
           <p>
             <strong>Estado:</strong> {empresa.subscriptionData.status || "N/A"}
           </p>
+
           {/* Botón para cancelar suscripción */}
           <div className={styles["empresas-subscription-container"]}>
             <button
@@ -443,6 +528,7 @@ export default function EmpresasPage() {
         </div>
       )}
 
+      {/* Modal de Confirmación/Alerta */}
       {modalData && modalData.isOpen && (
         <CustomModal
           isOpen={modalData.isOpen}
