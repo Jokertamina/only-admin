@@ -1,5 +1,3 @@
-// src/admin/empresas/page.tsx
-
 "use client"; // Indica que este componente usa hooks en Next.js 13
 
 import { useEffect, useState } from "react";
@@ -19,6 +17,13 @@ import styles from "../../styles/EmpresasPage.module.css"; // Importa el CSS Mod
 // Definimos un tipo para el plan
 type PlanType = "SIN_PLAN" | "BASICO" | "PREMIUM";
 
+// Interfaz para datos relevantes de la suscripción
+interface SubscriptionData {
+  renewalDate?: string;
+  expiryDate?: string;
+  status?: string;
+}
+
 interface Empresa {
   id: string;
   nombre: string;
@@ -27,6 +32,45 @@ interface Empresa {
   contactPhone?: string | null;
   plan?: PlanType;
   subscriptionId?: string;
+  subscriptionData?: SubscriptionData;
+}
+
+// Componente Modal Personalizado
+interface CustomModalProps {
+  isOpen: boolean;
+  title?: string;
+  message: string;
+  type: "alert" | "confirm";
+  onConfirm: () => void;
+  onCancel?: () => void;
+}
+
+function CustomModal({ isOpen, title, message, type, onConfirm, onCancel }: CustomModalProps) {
+  if (!isOpen) return null;
+  return (
+    <div className={styles["modal-overlay"]}>
+      <div className={styles["modal-container"]}>
+        {title && <h2 className={styles["modal-title"]}>{title}</h2>}
+        <p className={styles["modal-message"]}>{message}</p>
+        <div className={styles["modal-buttons"]}>
+          {type === "confirm" ? (
+            <>
+              <button onClick={onConfirm} className={styles["modal-btn-confirm"]}>
+                Confirmar
+              </button>
+              <button onClick={onCancel} className={styles["modal-btn-cancel"]}>
+                Cancelar
+              </button>
+            </>
+          ) : (
+            <button onClick={onConfirm} className={styles["modal-btn-ok"]}>
+              OK
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function EmpresasPage() {
@@ -48,6 +92,16 @@ export default function EmpresasPage() {
 
   // Referencia al doc de "Users"
   const [userDocId, setUserDocId] = useState<string | null>(null);
+
+  // Estado para el Modal
+  const [modalData, setModalData] = useState<{
+    isOpen: boolean;
+    type: "alert" | "confirm";
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  } | null>(null);
 
   useEffect(() => {
     async function fetchEmpresaForUser() {
@@ -79,6 +133,26 @@ export default function EmpresasPage() {
     }
     fetchEmpresaForUser();
   }, []);
+
+  // Obtiene datos de la suscripción si existe un subscriptionId
+  useEffect(() => {
+    async function fetchSubscriptionDetails() {
+      if (empresa?.subscriptionId) {
+        try {
+          const res = await fetch(`/api/subscription-details?subscriptionId=${empresa.subscriptionId}`);
+          const data = await res.json();
+          if (data.success && data.subscriptionData) {
+            setEmpresa((prev) =>
+              prev ? { ...prev, subscriptionData: data.subscriptionData } : prev
+            );
+          }
+        } catch (err) {
+          console.error("Error al obtener datos de la suscripción:", err);
+        }
+      }
+    }
+    fetchSubscriptionDetails();
+  }, [empresa?.subscriptionId]);
 
   // EDITAR EMPRESA
   const handleEdit = () => {
@@ -145,34 +219,67 @@ export default function EmpresasPage() {
     }
   };
 
-  // SOLO ESTA FUNCIÓN AÑADIDA PARA CANCELAR SUSCRIPCIÓN
+  // FUNCIÓN PARA CANCELAR SUSCRIPCIÓN CON MODAL
   const handleCancelSubscription = async () => {
     if (!empresa?.subscriptionId) {
-      alert("No tienes una suscripción activa.");
-      return;
-    }
-
-    if (!confirm("¿Estás seguro que deseas cancelar la suscripción? Continuará activa hasta el fin del periodo actual.")) {
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/cancel-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
+      setModalData({
+        isOpen: true,
+        type: "alert",
+        title: "Aviso",
+        message: "No tienes una suscripción activa.",
+        onConfirm: () => setModalData(null),
       });
-
-      const data = await res.json();
-      if (data.success) {
-        alert("Suscripción cancelada correctamente. Seguirá activa hasta finalizar el periodo actual.");
-      } else {
-        alert(`Error: ${data.message}`);
-      }
-    } catch (err) {
-      console.error("Error al cancelar la suscripción:", err);
-      alert("Error inesperado al cancelar la suscripción.");
+      return;
     }
+
+    // Mostrar modal de confirmación
+    setModalData({
+      isOpen: true,
+      type: "confirm",
+      title: "Confirmación",
+      message:
+        "¿Estás seguro que deseas cancelar la suscripción? Continuará activa hasta el fin del periodo actual.",
+      onConfirm: async () => {
+        setModalData(null);
+        try {
+          const res = await fetch("/api/cancel-subscription", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setModalData({
+              isOpen: true,
+              type: "alert",
+              title: "Éxito",
+              message:
+                "Suscripción cancelada correctamente. Seguirá activa hasta finalizar el periodo actual.",
+              onConfirm: () => setModalData(null),
+            });
+            // Aquí podrías actualizar la info de la suscripción (p.ej., guardar la fecha de expiración)
+          } else {
+            setModalData({
+              isOpen: true,
+              type: "alert",
+              title: "Error",
+              message: `Error: ${data.message}`,
+              onConfirm: () => setModalData(null),
+            });
+          }
+        } catch (err) {
+          console.error("Error al cancelar la suscripción:", err);
+          setModalData({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: "Error inesperado al cancelar la suscripción.",
+            onConfirm: () => setModalData(null),
+          });
+        }
+      },
+      onCancel: () => setModalData(null),
+    });
   };
 
   if (loading) {
@@ -194,90 +301,6 @@ export default function EmpresasPage() {
             </button>
           </div>
         ) : null}
-      </main>
-    );
-  }
-
-  // RENDER
-  if (loading) {
-    return <p className={styles["empresas-loading"]}>Cargando empresa...</p>;
-  }
-
-  if (!empresa) {
-    return (
-      <main className={styles["empresas-container"]}>
-        <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
-        {!showRegisterForm ? (
-          <div>
-            <p>No se encontró la empresa asociada a este usuario.</p>
-            <button
-              className={styles["empresas-btn-register"]}
-              onClick={() => setShowRegisterForm(true)}
-            >
-              Registrar Empresa
-            </button>
-          </div>
-        ) : (
-          <section className={styles["empresas-form"]}>
-            <h2 className={styles["empresas-title"]}>Registra tu Empresa</h2>
-            <div className={styles["empresas-input-group"]}>
-              <label className={styles["empresas-label"]} htmlFor="nombre">
-                Nombre
-              </label>
-              <input
-                id="nombre"
-                type="text"
-                className={styles["empresas-input"]}
-                value={newEmpresaData.nombre}
-                onChange={(e) => handleNewEmpresaChange("nombre", e.target.value)}
-              />
-            </div>
-            <div className={styles["empresas-input-group"]}>
-              <label className={styles["empresas-label"]} htmlFor="domicilio">
-                Domicilio
-              </label>
-              <input
-                id="domicilio"
-                type="text"
-                className={styles["empresas-input"]}
-                value={newEmpresaData.domicilio}
-                onChange={(e) => handleNewEmpresaChange("domicilio", e.target.value)}
-              />
-            </div>
-            <div className={styles["empresas-input-group"]}>
-              <label className={styles["empresas-label"]} htmlFor="nif">
-                NIF / CIF
-              </label>
-              <input
-                id="nif"
-                type="text"
-                className={styles["empresas-input"]}
-                value={newEmpresaData.nif}
-                onChange={(e) => handleNewEmpresaChange("nif", e.target.value)}
-              />
-            </div>
-            <div className={styles["empresas-input-group"]}>
-              <label className={styles["empresas-label"]} htmlFor="contactPhone">
-                Teléfono de Contacto
-              </label>
-              <input
-                id="contactPhone"
-                type="tel"
-                className={styles["empresas-input"]}
-                value={newEmpresaData.contactPhone}
-                onChange={(e) => handleNewEmpresaChange("contactPhone", e.target.value)}
-              />
-            </div>
-            <div className={styles["empresas-btn-group"]}>
-              <button onClick={handleCreateNewEmpresa} className={styles["empresas-btn-save"]}>
-                Crear Empresa
-              </button>
-              <button onClick={() => setShowRegisterForm(false)} className={styles["empresas-btn-cancel"]}>
-                Cancelar
-              </button>
-            </div>
-          </section>
-        )}
       </main>
     );
   }
@@ -390,15 +413,49 @@ export default function EmpresasPage() {
         </section>
       )}
 
-      {/* SOLO ESTE BOTÓN AÑADIDO */}
+      {/* Botón para cancelar suscripción */}
       <div className={styles["empresas-subscription-container"]}>
-            <button
-              className={styles["empresas-btn-cancel-subscription"]}
-              onClick={handleCancelSubscription}
-            >
-              Cancelar Suscripción
-            </button>
-          </div>
+        <button
+          className={styles["empresas-btn-cancel-subscription"]}
+          onClick={handleCancelSubscription}
+        >
+          Cancelar Suscripción
+        </button>
+      </div>
+
+      {/* Mostrar información de la suscripción, si existe */}
+      {empresa.subscriptionData && (
+        <div className={styles["subscription-info"]}>
+          <h2>Información de Suscripción</h2>
+          <p>
+            <strong>Fecha de Renovación:</strong>{" "}
+            {empresa.subscriptionData.renewalDate
+              ? new Date(empresa.subscriptionData.renewalDate).toLocaleDateString()
+              : "N/A"}
+          </p>
+          <p>
+            <strong>Fecha de Expiración:</strong>{" "}
+            {empresa.subscriptionData.expiryDate
+              ? new Date(empresa.subscriptionData.expiryDate).toLocaleDateString()
+              : "N/A"}
+          </p>
+          <p>
+            <strong>Estado:</strong> {empresa.subscriptionData.status || "N/A"}
+          </p>
+        </div>
+      )}
+
+      {/* Renderiza el modal si está activo */}
+      {modalData && modalData.isOpen && (
+        <CustomModal
+          isOpen={modalData.isOpen}
+          title={modalData.title}
+          message={modalData.message}
+          type={modalData.type}
+          onConfirm={modalData.onConfirm}
+          onCancel={modalData.onCancel}
+        />
+      )}
     </main>
   );
 }
