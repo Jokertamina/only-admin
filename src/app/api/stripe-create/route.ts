@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { adminDb } from "../../../lib/firebaseAdminConfig"; // Usamos Admin SDK
+
+// IMPORTA FIREBASE ADMIN SDK EN LUGAR DEL SDK DE CLIENTE
+import { adminDb } from "../../../lib/firebaseAdminConfig"; // Se usa Admin SDK en lugar de db
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia",
@@ -9,6 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 export async function POST(request: NextRequest) {
   console.log("[stripe-create] Método recibido:", request.method);
 
+  // Verificamos que se trate de una petición POST
   if (request.method !== "POST") {
     return NextResponse.json("Method Not Allowed", {
       status: 405,
@@ -29,32 +32,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // 1) Obtenemos el doc de la empresa en Firestore usando Admin SDK
     const empresaRef = adminDb.collection("Empresas").doc(empresaId);
     const empresaSnap = await empresaRef.get();
 
-    if (!empresaSnap.exists) {
-      return NextResponse.json("Empresa no encontrada", { status: 404 });
+    let stripeCustomerId: string | undefined;
+
+    if (empresaSnap.exists) {
+      // Leemos si ya existe el campo stripeCustomerId
+      stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
     }
 
-    let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
-    let currentSubscriptionId = empresaSnap.data()?.subscriptionId;
-
-    // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
-    if (currentSubscriptionId) {
-      try {
-        await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: true, // Cancela al final del ciclo actual
-        });
-        console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
-      } catch (error) {
-        console.error("[stripe-create] Error al cancelar suscripción anterior:", error);
-      }
-    }
-
-    // Si el usuario no tiene un cliente en Stripe, lo creamos
+    // 2) Si no existe, creamos un nuevo customer en Stripe y lo guardamos en Firestore
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        email: empresaSnap.data()?.email || undefined,
+        email: empresaSnap.data()?.email || undefined, // Si hay email en Firestore, se usa
         metadata: { empresaId },
       });
 
@@ -62,12 +54,12 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // Crear la sesión de pago en Stripe
+    // 3) Creamos la sesión de Checkout asociada al customer existente o recién creado
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
       cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
-      customer: stripeCustomerId,
+      customer: stripeCustomerId, // Usamos el mismo cliente
       line_items: [
         {
           price:
