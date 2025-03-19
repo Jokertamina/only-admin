@@ -167,7 +167,7 @@ const PricingPage: React.FC = () => {
         {/* Card Personalizado */}
         {/* Si la empresa ya tiene el plan personalizado, asumimos que ya se acordó el setupFee y mostramos "Plan actual"
             De lo contrario, mostramos "Contactar" para notificar y luego proceder al pago */}
-        <PricingCard
+        {/* <PricingCard
           plan="Personalizado"
           price="Pago inicial + 55€/mes"
           features={[
@@ -179,7 +179,7 @@ const PricingPage: React.FC = () => {
           buttonText={currentPlan === "CUSTOM" ? "Plan actual" : "Contactar"}
           onBuy={currentPlan === "CUSTOM" ? handleCustomPlanPayment : handleCustomPlan}
           disabled={currentPlan === "CUSTOM"}
-        />
+        /> */}
       </div>
 
       <CustomModal
