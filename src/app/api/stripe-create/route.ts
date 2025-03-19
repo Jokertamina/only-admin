@@ -61,16 +61,12 @@ export async function POST(request: NextRequest) {
     if (currentPlan === "PREMIUM" && plan === "BASICO") {
       console.log("[stripe-create] Cambio de PREMIUM a BÁSICO detectado. Se aplicará después del ciclo actual.");
       
-      // Enviar un mensaje de aviso al frontend, pero permitir que la función continúe
-      const responseMessage = {
+      // Enviar un mensaje de aviso al frontend y finalizar la ejecución
+      return NextResponse.json({
         success: true,
         message: "El plan Básico se activará automáticamente cuando termine el ciclo del plan Premium.",
-      };
-    
-      // Continuamos con la sesión de pago en Stripe si el usuario aún necesita pagar
-      console.log("[stripe-create] Continuando con la sesión de Stripe...");
+      });
     }
-    
 
     // 🚀 3. Si el usuario no tiene un cliente en Stripe, lo creamos
     if (!stripeCustomerId) {
