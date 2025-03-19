@@ -63,9 +63,7 @@ export async function POST(request: NextRequest) {
       ],
       subscription_data: {
         trial_period_days: 30,
-        metadata: {
-          empresaId,
-        },
+        metadata: { empresaId },
       },
       metadata: {
         empresaId,
@@ -74,8 +72,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error en stripe-create-custom:", error);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Error interno";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

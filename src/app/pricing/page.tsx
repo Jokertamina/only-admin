@@ -61,8 +61,8 @@ const PricingPage: React.FC = () => {
   };
 
   // Función para el plan personalizado:
-  // - Primero notifica al admin con email y contactPhone.
-  // - Luego muestra un modal informativo.
+  // - Notifica al admin (vía endpoint) enviando email y contactPhone.
+  // - Luego muestra el modal informativo.
   const handleCustomPlan = async () => {
     if (loading) {
       setModalMessage("Cargando información, por favor espera...");
@@ -165,8 +165,6 @@ const PricingPage: React.FC = () => {
         />
 
         {/* Card Personalizado */}
-        {/* Si la empresa ya tiene el plan personalizado, asumimos que ya se acordó el setupFee y mostramos "Plan actual"
-            De lo contrario, mostramos "Contactar" para notificar y luego proceder al pago */}
         {/* <PricingCard
           plan="Personalizado"
           price="Pago inicial + 55€/mes"
