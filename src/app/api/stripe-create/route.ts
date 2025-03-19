@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
-    let currentSubscriptionId = empresaSnap.data()?.subscriptionId;
+    const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
     // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
     if (currentSubscriptionId) {
