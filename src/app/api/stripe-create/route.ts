@@ -37,19 +37,13 @@ export async function POST(request: NextRequest) {
     }
 
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
-    const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
-    const currentPlan = empresaSnap.data()?.plan; // Extraemos el plan actual
+    const currentSubscriptionId = empresaSnap.data()?.subscriptionId; // ⬅️ Cambiado de let a const
 
-    console.log(`[stripe-create] Empresa encontrada: ${empresaId}`);
-    console.log(`[stripe-create] Plan actual: ${currentPlan}`);
-    console.log(`[stripe-create] Plan solicitado: ${plan}`);
-    console.log(`[stripe-create] Suscripción activa en Stripe: ${currentSubscriptionId}`);
-
-    // 🚀 1. Si el usuario tiene una suscripción activa, la marcamos para cancelación
+    // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
     if (currentSubscriptionId) {
       try {
         await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: true, // Se cancela cuando termine el ciclo actual
+          cancel_at_period_end: true, // Cancela al final del ciclo actual
         });
         console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
       } catch (error) {
@@ -57,18 +51,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 🚀 2. Si el usuario está bajando de Premium a Básico, permitir la selección pero no activar inmediatamente
-    if (currentPlan === "PREMIUM" && plan === "BASICO") {
-      console.log("[stripe-create] Cambio de PREMIUM a BÁSICO detectado. Se aplicará después del ciclo actual.");
-      
-      // Enviar un mensaje de aviso al frontend y finalizar la ejecución
-      return NextResponse.json({
-        success: true,
-        message: "El plan Básico se activará automáticamente cuando termine el ciclo del plan Premium.",
-      });
-    }
-
-    // 🚀 3. Si el usuario no tiene un cliente en Stripe, lo creamos
+    // Si el usuario no tiene un cliente en Stripe, lo creamos
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
@@ -79,8 +62,7 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // 🚀 4. Crear la sesión de pago en Stripe si el usuario está subiendo de plan o activando por primera vez
-    console.log("[stripe-create] Creando nueva suscripción...");
+    // Crear la sesión de pago en Stripe
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
@@ -102,6 +84,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url });
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
-    return NextResponse.json({ error: "Internal Server Error", details: error }, { status: 500 });
+    return NextResponse.json("Internal Server Error", { status: 500 });
   }
 }
