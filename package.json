@@ -9,16 +9,17 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "firebase": "^11.4.0",
     "firebase-admin": "^13.2.0",
     "glob": "^11.0.1",
     "next": "^15.2.2",
+    "path-to-regexp": "^8.2.0",
     "pdfmake": "^0.2.18",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "stripe": "^17.7.0",
-    "xlsx": "^0.18.5"
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
