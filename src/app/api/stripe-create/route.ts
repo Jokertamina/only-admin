@@ -37,37 +37,21 @@ export async function POST(request: NextRequest) {
     }
 
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
-    const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
+    let currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
-    // 🚀 1. Verificar si el usuario tiene una suscripción activa
+    // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
     if (currentSubscriptionId) {
       try {
-        const subscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
-        const currentItem = subscription.items.data[0]; // Obtenemos el ítem actual
-
-        // 🚀 2. Actualizar la suscripción en lugar de cancelarla
-        const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
-          items: [
-            {
-              id: currentItem.id,
-              price:
-                plan === "PREMIUM"
-                  ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
-                  : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-            },
-          ],
-          proration_behavior: "create_prorations", // 🔥 Aplica prorrateo para calcular la diferencia de pago
+        await stripe.subscriptions.update(currentSubscriptionId, {
+          cancel_at_period_end: true, // Cancela al final del ciclo actual
         });
-
-        console.log(`[stripe-create] Suscripción actualizada: ${updatedSubscription.id}`);
-        return NextResponse.json({ subscriptionId: updatedSubscription.id });
+        console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
       } catch (error) {
-        console.error("[stripe-create] Error al actualizar suscripción:", error);
-        return NextResponse.json("Error al actualizar suscripción", { status: 500 });
+        console.error("[stripe-create] Error al cancelar suscripción anterior:", error);
       }
     }
 
-    // 🚀 3. Si no hay suscripción activa, crear una nueva
+    // Si el usuario no tiene un cliente en Stripe, lo creamos
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
@@ -78,24 +62,26 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    const subscription = await stripe.subscriptions.create({
+    // Crear la sesión de pago en Stripe
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
       customer: stripeCustomerId,
-      items: [
+      line_items: [
         {
           price:
             plan === "PREMIUM"
               ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
               : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
+          quantity: 1,
         },
       ],
       metadata: { empresaId, plan },
     });
 
-    await empresaRef.update({ subscriptionId: subscription.id });
-
-    console.log("[stripe-create] Nueva suscripción creada:", subscription.id);
-    return NextResponse.json({ subscriptionId: subscription.id });
-
+    console.log("[stripe-create] Sesión creada:", session.id);
+    return NextResponse.json({ url: session.url });
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });

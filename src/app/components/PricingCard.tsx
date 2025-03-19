@@ -19,11 +19,11 @@ export default function PricingCard({
   onBuy,
   disabled = false,
 }: PricingCardProps) {
-  const isCustomPlan = plan === "Personalizado"; // Detectamos si es el plan especial
+  const isCustomPlan = plan === "Personalizado";
+  const isPremiumPlan = plan === "Premium";
 
   return (
-    <div className={`${styles["pricing-card"]} ${isCustomPlan ? styles.customCard : ""}`}>
-      {/* Etiqueta especial para el plan "Personalizado" */}
+    <div className={`${styles["pricing-card"]} ${isCustomPlan ? styles.customCard : ""} ${isPremiumPlan ? styles.premiumBorder : ""}`}>
       {isCustomPlan && <div className={styles.premiumTag}>🔹 Plan a medida</div>}
 
       <h2 className={styles["card-plan"]}>{plan}</h2>
@@ -38,9 +38,7 @@ export default function PricingCard({
       </ul>
 
       <button
-        className={`${styles["card-button"]} ${
-          isCustomPlan ? styles.contactButton : ""
-        } ${disabled ? styles["card-button-disabled"] : ""}`}
+        className={`${styles["card-button"]} ${isCustomPlan ? styles.contactButton : ""} ${disabled ? styles["card-button-disabled"] : ""}`}
         disabled={disabled}
         onClick={!disabled ? onBuy : undefined}
       >
