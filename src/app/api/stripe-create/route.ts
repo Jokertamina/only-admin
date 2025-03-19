@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
+        name: empresaSnap.data()?.nombre || undefined,
         metadata: { empresaId },
       });
 
