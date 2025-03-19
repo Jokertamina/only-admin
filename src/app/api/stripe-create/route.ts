@@ -39,19 +39,18 @@ export async function POST(request: NextRequest) {
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
     const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
-    // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
+    // 🚨 1. Si el usuario tiene una suscripción activa, la cancelamos INMEDIATAMENTE
     if (currentSubscriptionId) {
       try {
-        await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: true, // Cancela al final del ciclo actual
-        });
-        console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
+        await stripe.subscriptions.cancel(currentSubscriptionId); // ✅ Usamos .cancel en lugar de .del
+        console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} cancelada.`);
       } catch (error) {
-        console.error("[stripe-create] Error al cancelar suscripción anterior:", error);
+        console.error("[stripe-create] Error al cancelar la suscripción anterior:", error);
+        return NextResponse.json("Error al cancelar suscripción anterior", { status: 500 });
       }
     }
 
-    // Si el usuario no tiene un cliente en Stripe, lo creamos
+    // 🚨 2. Si el usuario no tiene un cliente en Stripe, lo creamos
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
@@ -62,26 +61,26 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // Crear la sesión de pago en Stripe
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+    // 🚨 3. Crear la nueva suscripción con prorrateo
+    const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
-      line_items: [
+      items: [
         {
           price:
             plan === "PREMIUM"
               ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
               : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-          quantity: 1,
         },
       ],
+      proration_behavior: "create_prorations", // ✅ Para evitar cobros duplicados
       metadata: { empresaId, plan },
     });
 
-    console.log("[stripe-create] Sesión creada:", session.id);
-    return NextResponse.json({ url: session.url });
+    // 🚨 4. Guardar la nueva suscripción en Firestore
+    await empresaRef.update({ subscriptionId: subscription.id });
+
+    console.log("[stripe-create] Nueva suscripción creada:", subscription.id);
+    return NextResponse.json({ subscriptionId: subscription.id });
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });
