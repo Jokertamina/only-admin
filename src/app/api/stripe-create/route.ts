@@ -1,11 +1,8 @@
-// src/app/api/stripe-create/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// IMPORTA FIRESTORE
-import { db } from "../../../lib/firebaseConfig";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+// IMPORTA FIREBASE ADMIN SDK EN LUGAR DEL SDK DE CLIENTE
+import { adminDb } from "../../../lib/firebaseAdminConfig"; // Se usa Admin SDK en lugar de db
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia",
@@ -35,28 +32,26 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1) Obtenemos el doc de la empresa en Firestore
-    const empresaRef = doc(db, "Empresas", empresaId);
-    const empresaSnap = await getDoc(empresaRef);
+    // 1) Obtenemos el doc de la empresa en Firestore usando Admin SDK
+    const empresaRef = adminDb.collection("Empresas").doc(empresaId);
+    const empresaSnap = await empresaRef.get();
 
     let stripeCustomerId: string | undefined;
 
-    if (empresaSnap.exists()) {
+    if (empresaSnap.exists) {
       // Leemos si ya existe el campo stripeCustomerId
-      stripeCustomerId = empresaSnap.data().stripeCustomerId;
+      stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
     }
 
-    // 2) Si no existe, creamos un nuevo customer en Stripe y lo guardamos
+    // 2) Si no existe, creamos un nuevo customer en Stripe y lo guardamos en Firestore
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        // Si tienes el email en Firestore, podrías pasarlo aquí:
-        // email: empresaSnap.data()?.email || undefined,
-        metadata: {
-          empresaId,
-        },
+        email: empresaSnap.data()?.email || undefined, // Si hay email en Firestore, se usa
+        metadata: { empresaId },
       });
+
       stripeCustomerId = customer.id;
-      await updateDoc(empresaRef, { stripeCustomerId });
+      await empresaRef.update({ stripeCustomerId });
     }
 
     // 3) Creamos la sesión de Checkout asociada al customer existente o recién creado
