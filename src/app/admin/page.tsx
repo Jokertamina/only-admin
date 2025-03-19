@@ -7,6 +7,7 @@ import { collection, query, where, getDocs, doc, getDoc } from "firebase/firesto
 import { useRouter } from "next/navigation";
 import Loading from "../components/Loading";
 import styles from "../styles/AdminPage.module.css";
+import Image from "next/image";
 
 // Componente modal para compartir el bot
 type ShareModalProps = {
@@ -136,17 +137,16 @@ const AdminPage = () => {
       <section className={styles["admin-page-share-container"]}>
         {/* Contenedor izquierdo: Imagen del bot */}
         <div className={styles["admin-page-share-image"]}>
-          <img
+          <Image
             src="/images/bot-image.svg"
             alt="Bot"
+            width={100} // Ajusta el tamaño según tu necesidad
+            height={100} // Ajusta el tamaño según tu necesidad
             className={styles["bot-image"]}
             draggable={false} // Evita que la imagen se arrastre
             onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
           />
-
         </div>
-
-
         {/* Contenedor derecho: Texto y botón */}
         <div className={styles["admin-page-share-content"]}>
           <h3 className={styles["admin-page-share-title"]}>
