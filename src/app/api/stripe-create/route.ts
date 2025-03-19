@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
     console.log(`[stripe-create] Plan solicitado: ${plan}`);
     console.log(`[stripe-create] Suscripción activa en Stripe: ${currentSubscriptionId}`);
 
-    // 🚀 1. Si el usuario tiene una suscripción activa
+    // 🚀 1. Si el usuario tiene una suscripción activa, la marcamos para cancelación
     if (currentSubscriptionId) {
       try {
         await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: true, // Marca la suscripción para cancelarse al final del ciclo
+          cancel_at_period_end: true, // Se cancela cuando termine el ciclo actual
         });
         console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
       } catch (error) {
@@ -57,11 +57,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 🚀 2. Si el usuario está bajando de Premium a Básico, esperar hasta que finalice el ciclo
+    // 🚀 2. Si el usuario está bajando de Premium a Básico, permitir la selección pero no activar inmediatamente
     if (currentPlan === "PREMIUM" && plan === "BASICO") {
       console.log("[stripe-create] Cambio de PREMIUM a BÁSICO detectado. Se aplicará después del ciclo actual.");
       return NextResponse.json({
-        message: "El plan Básico se activará cuando termine el ciclo del plan Premium.",
+        success: true,
+        message: "El plan Básico se activará automáticamente cuando termine el ciclo del plan Premium.",
       });
     }
 
@@ -77,32 +78,28 @@ export async function POST(request: NextRequest) {
     }
 
     // 🚀 4. Crear la sesión de pago en Stripe si el usuario está subiendo de plan o activando por primera vez
-    if (currentPlan !== "PREMIUM" || plan === "PREMIUM") {
-      console.log("[stripe-create] Creando nueva suscripción...");
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-        cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
-        customer: stripeCustomerId,
-        line_items: [
-          {
-            price:
-              plan === "PREMIUM"
-                ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
-                : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-            quantity: 1,
-          },
-        ],
-        metadata: { empresaId, plan },
-      });
+    console.log("[stripe-create] Creando nueva suscripción...");
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+      customer: stripeCustomerId,
+      line_items: [
+        {
+          price:
+            plan === "PREMIUM"
+              ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+              : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
+          quantity: 1,
+        },
+      ],
+      metadata: { empresaId, plan },
+    });
 
-      console.log("[stripe-create] Sesión creada:", session.id);
-      return NextResponse.json({ url: session.url });
-    }
-
-    return NextResponse.json({ message: "El cambio de plan se programó correctamente." });
+    console.log("[stripe-create] Sesión creada:", session.id);
+    return NextResponse.json({ url: session.url });
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
-    return NextResponse.json("Internal Server Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error", details: error }, { status: 500 });
   }
 }
