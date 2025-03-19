@@ -169,21 +169,20 @@ const PricingPage: React.FC = () => {
         />
 
         {/* Tarjeta de plan personalizado (actualmente oculta, se deja comentada) */}
-        {/*
-        <PricingCard
+        
+        {/* <PricingCard
           plan="Personalizado"
-          price="Pago inicial + 55€/mes"
+          price="Pago inicial según contratación + 55€/mes"
           features={[
             "Coste inicial variable según acuerdo",
             "Cuota mensual de 55€",
             "Personalización según tus necesidades",
             "Asesoramiento personalizado",
           ]}
-          buttonText={currentPlan === "CUSTOM" ? "Plan actual" : "Contactar"}
+          buttonText={currentPlan === "CUSTOM" ? "Plan actual" : "Proximamente"}
           onBuy={currentPlan === "CUSTOM" ? handleCustomPlanPayment : handleCustomPlan}
-          disabled={currentPlan === "CUSTOM"}
-        />
-        */}
+          disabled//={currentPlan === "CUSTOM"}
+        /> */}
       </div>
 
       <CustomModal
