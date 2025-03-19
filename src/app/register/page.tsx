@@ -32,7 +32,7 @@ export default function RegisterPage() {
 
   // Validaciones de campos
   const validateNIF = (value: string): string => {
-    const nifPattern = /^[0-9]{8}[A-Z]$/;           // NIF: 8 dígitos + 1 letra
+    const nifPattern = /^[0-9]{8}[A-Z]$/; // NIF: 8 dígitos + 1 letra
     const cifPattern = /^[A-HJ-NP-SUVW][0-9]{7}[0-9A-J]$/; // CIF: 1 letra + 7 dígitos + letra/dígito
     if (!nifPattern.test(value) && !cifPattern.test(value)) {
       return "Formato de NIF/CIF incorrecto";
@@ -108,7 +108,6 @@ export default function RegisterPage() {
     }
   };
 
-  // Manejo del registro
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -140,18 +139,18 @@ export default function RegisterPage() {
       const userCred = await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
       const uid = userCred.user.uid;
 
-      // 2. Creamos el doc en Empresas (ahora sí guardamos el email)
+      // 2. Creamos el documento en Empresas (guardando también el email)
       const docRef = await addDoc(collection(db, "Empresas"), {
         nombre: trimmedNombreEmpresa,
         domicilio: trimmedDomicilio,
         nif: trimmedNIF,
         contactPhone: trimmedContactPhone,
         plan: "SIN_PLAN",
-        email: trimmedEmail, // <--- Importante
+        email: trimmedEmail,
       });
       const empresaId = docRef.id;
 
-      // 3. Creamos el doc en Users, relacionando uid con la empresa
+      // 3. Creamos el documento en Users, relacionando uid con la empresa
       await addDoc(collection(db, "Users"), {
         uid,
         empresaId,
@@ -231,7 +230,7 @@ export default function RegisterPage() {
               className={styles["register-input"]}
               value={contactPhone}
               onChange={(e) => {
-                let value = e.target.value;
+                const value = e.target.value;
                 // Permitir solo números y el "+" al inicio
                 if (/^\+?[0-9]*$/.test(value)) {
                   setContactPhone(value);

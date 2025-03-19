@@ -17,7 +17,14 @@ const PricingPage: React.FC = () => {
   const currentPlan = empresaData?.plan || "SIN_PLAN";
 
   useEffect(() => {
-    console.log("[PricingPage] empresaId:", empresaId, "loading:", loading, "currentPlan:", currentPlan);
+    console.log(
+      "[PricingPage] empresaId:",
+      empresaId,
+      "loading:",
+      loading,
+      "currentPlan:",
+      currentPlan
+    );
   }, [empresaId, loading, currentPlan]);
 
   // Función para iniciar la compra de planes estándar
@@ -53,7 +60,9 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  // Función para el plan personalizado: notifica al admin vía Telegram (u otro método) y muestra el modal
+  // Función para el plan personalizado:
+  // - Primero notifica al admin con email y contactPhone.
+  // - Luego muestra un modal informativo.
   const handleCustomPlan = async () => {
     if (loading) {
       setModalMessage("Cargando información, por favor espera...");
@@ -84,9 +93,37 @@ const PricingPage: React.FC = () => {
       console.error("Error notificando plan personalizado:", error);
     }
     setModalMessage(
-      "Gracias por elegir el plan personalizado. Nuestro equipo se pondrá en contacto contigo para adaptar la herramienta a tus necesidades. Una vez definidos los detalles, se te cobrará un pago inicial de 300€ y a partir del siguiente mes se activará una cuota mensual de 55€."
+      "Gracias por elegir el plan personalizado. Nuestro equipo se pondrá en contacto contigo para adaptar la herramienta a tus necesidades. Una vez definidos los detalles, se te cobrará el pago inicial acordado y, a partir del siguiente mes, se activará la cuota mensual de 55€."
     );
     setShowModal(true);
+  };
+
+  // Función para proceder al pago del plan personalizado, si ya se ha acordado el setupFee en Firestore.
+  const handleCustomPlanPayment = async () => {
+    if (loading) {
+      setModalMessage("Cargando información, por favor espera...");
+      setShowModal(true);
+      return;
+    }
+    if (!empresaId) {
+      setModalMessage("Debes iniciar sesión para contratar un plan.");
+      setShowModal(true);
+      return;
+    }
+    try {
+      const res = await fetch("/api/stripe-create-custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresaId }),
+      });
+      if (!res.ok) throw new Error("La petición falló");
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch (error) {
+      console.error("Error al crear sesión de pago personalizado:", error);
+      setModalMessage("Hubo un problema al iniciar el pago. Inténtalo de nuevo.");
+      setShowModal(true);
+    }
   };
 
   return (
@@ -127,19 +164,22 @@ const PricingPage: React.FC = () => {
           disabled={currentPlan === "PREMIUM"}
         />
 
-       
-        {/* <PricingCard
+        {/* Card Personalizado */}
+        {/* Si la empresa ya tiene el plan personalizado, asumimos que ya se acordó el setupFee y mostramos "Plan actual"
+            De lo contrario, mostramos "Contactar" para notificar y luego proceder al pago */}
+        <PricingCard
           plan="Personalizado"
-          price="Coste inicial según personalización + 55€/mes de mantenimiento"
+          price="Pago inicial + 55€/mes"
           features={[
-            "Pago inicial de 300€",
+            "Coste inicial variable según acuerdo",
             "Cuota mensual de 55€",
             "Personalización según tus necesidades",
             "Asesoramiento personalizado",
           ]}
-          buttonText="Contactar"
-          onBuy={handleCustomPlan}
-        /> */}
+          buttonText={currentPlan === "CUSTOM" ? "Plan actual" : "Contactar"}
+          onBuy={currentPlan === "CUSTOM" ? handleCustomPlanPayment : handleCustomPlan}
+          disabled={currentPlan === "CUSTOM"}
+        />
       </div>
 
       <CustomModal
