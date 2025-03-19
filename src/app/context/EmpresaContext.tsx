@@ -6,6 +6,8 @@ import { collection, query, where, getDocs, doc, onSnapshot } from "firebase/fir
 // Define la interfaz para la data de la empresa (ajústala según tus campos)
 interface EmpresaData {
   plan?: string;
+  email?: string;
+  contactPhone?: string;
   // Agrega aquí otros campos que necesites...
 }
 

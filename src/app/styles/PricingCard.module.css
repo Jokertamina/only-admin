@@ -26,6 +26,16 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+.pricing-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-in-out;
+  border: 4px solid #a0a0a0;
+}
+
 /* Gradiente suave en hover */
 .pricing-card::before {
   content: "";
@@ -114,4 +124,38 @@
   cursor: default;
 }
 
+.premiumBorder {
+  border: 4px solid #ff6b81;
+}
 
+
+/* 🔥 Estilos especiales para el Plan Personalizado */
+.customCard {
+  border: 4px solid #7b61ff;
+  background-clip: padding-box;
+  position: relative;
+}
+
+/* 🔥 Borde dorado con efecto premium */
+.customCard::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  z-index: -1;
+  border-radius: 18px;
+}
+
+/* 🔹 Etiqueta "Plan a medida" */
+.premiumTag {
+  background: linear-gradient(45deg, #7b61ff, #ff6b81);
+  color: white;
+  padding: 5px 15px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 10px;
+}

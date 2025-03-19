@@ -1,65 +1,49 @@
 "use client"; // Necesario para usar useEffect y useState
 
 import { useEffect, useState } from "react";
-// IMPORTAMOS EL plan actual desde tu contexto
 import { useEmpresa } from "../context/EmpresaContext";
 import PricingCard from "../components/PricingCard";
+import CustomModal from "../components/CustomModal";
 import styles from "../styles/PricingPage.module.css"; // Importación como módulo
 
 const PricingPage: React.FC = () => {
-  // Suponemos que en tu contexto tienes: empresaId, loading, y empresaData con el campo plan
+  // Obtenemos empresaId, loading y empresaData (que incluye plan, email y contactPhone)
   const { empresaId, loading, empresaData } = useEmpresa();
 
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
 
-  // Obtenemos el plan actual de la empresa, o "SIN_PLAN" si no existe
+  // Obtenemos el plan actual o "SIN_PLAN" si no existe
   const currentPlan = empresaData?.plan || "SIN_PLAN";
 
   useEffect(() => {
-    console.log(
-      "[PricingPage] empresaId:",
-      empresaId,
-      "loading:",
-      loading,
-      "currentPlan:",
-      currentPlan
-    );
+    console.log("[PricingPage] empresaId:", empresaId, "loading:", loading, "currentPlan:", currentPlan);
   }, [empresaId, loading, currentPlan]);
 
-  // Función genérica para iniciar la compra
+  // Función para iniciar la compra de planes estándar
   const handleBuyPlan = async (plan: string) => {
-    // 1. Si estamos cargando, mostramos un mensaje
     if (loading) {
       setModalMessage("Cargando información, por favor espera...");
       setShowModal(true);
       return;
     }
-
-    // 2. Si no hay empresaId, forzamos a loguearse o mostrar un error
     if (!empresaId) {
       setModalMessage("Debes iniciar sesión para contratar un plan.");
       setShowModal(true);
       return;
     }
-
-    // 3. Si ya tiene este plan, mostramos un aviso en lugar de comprar
     if (plan === currentPlan) {
       setModalMessage("Ya tienes contratado este plan. No es necesario volver a comprarlo.");
       setShowModal(true);
       return;
     }
-
-    // 4. Llamamos a nuestro endpoint de Stripe
     try {
       const res = await fetch("/api/stripe-create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan, empresaId }),
       });
-
       if (!res.ok) throw new Error("La petición falló");
-
       const { url } = await res.json();
       if (url) window.location.href = url;
     } catch (error) {
@@ -67,6 +51,42 @@ const PricingPage: React.FC = () => {
       setModalMessage("Hubo un problema al iniciar la compra. Inténtalo de nuevo.");
       setShowModal(true);
     }
+  };
+
+  // Función para el plan personalizado: notifica al admin vía Telegram (u otro método) y muestra el modal
+  const handleCustomPlan = async () => {
+    if (loading) {
+      setModalMessage("Cargando información, por favor espera...");
+      setShowModal(true);
+      return;
+    }
+    if (!empresaId) {
+      setModalMessage("Debes iniciar sesión para contratar un plan.");
+      setShowModal(true);
+      return;
+    }
+    const email = empresaData?.email || "Sin email registrado";
+    const contactPhone = empresaData?.contactPhone || "Sin teléfono registrado";
+    try {
+      const res = await fetch("/api/notify-custom-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empresaId,
+          email,
+          contactPhone,
+          plan: "Personalizado",
+        }),
+      });
+      const result = await res.json();
+      console.log("Notificación a admin:", result);
+    } catch (error) {
+      console.error("Error notificando plan personalizado:", error);
+    }
+    setModalMessage(
+      "Gracias por elegir el plan personalizado. Nuestro equipo se pondrá en contacto contigo para adaptar la herramienta a tus necesidades. Una vez definidos los detalles, se te cobrará un pago inicial de 300€ y a partir del siguiente mes se activará una cuota mensual de 55€."
+    );
+    setShowModal(true);
   };
 
   return (
@@ -106,16 +126,29 @@ const PricingPage: React.FC = () => {
           onBuy={() => handleBuyPlan("PREMIUM")}
           disabled={currentPlan === "PREMIUM"}
         />
+
+       
+        {/* <PricingCard
+          plan="Personalizado"
+          price="Coste inicial según personalización + 55€/mes de mantenimiento"
+          features={[
+            "Pago inicial de 300€",
+            "Cuota mensual de 55€",
+            "Personalización según tus necesidades",
+            "Asesoramiento personalizado",
+          ]}
+          buttonText="Contactar"
+          onBuy={handleCustomPlan}
+        /> */}
       </div>
 
-      {showModal && (
-        <div className={styles["modal-backdrop"]}>
-          <div className={styles["modal-content"]}>
-            <p>{modalMessage}</p>
-            <button onClick={() => setShowModal(false)}>Cerrar</button>
-          </div>
-        </div>
-      )}
+      <CustomModal
+        isOpen={showModal}
+        title=""
+        message={modalMessage}
+        type="alert"
+        onConfirm={() => setShowModal(false)}
+      />
     </main>
   );
 };

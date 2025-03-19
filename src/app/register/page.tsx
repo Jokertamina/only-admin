@@ -10,26 +10,29 @@ import styles from "../styles/RegisterPage.module.css"; // Importa el CSS Module
 
 export default function RegisterPage() {
   const router = useRouter();
+
+  // Campos de formulario
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [domicilio, setDomicilio] = useState("");
   const [nif, setNif] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
 
-  // Estados de error para campos individuales
+  // Manejo de errores globales y de campos
+  const [error, setError] = useState("");
   const [nifError, setNifError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  // Referencias a los inputs para manipular estilos
   const nifInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  // Funciones de validación
+  // Validaciones de campos
   const validateNIF = (value: string): string => {
-    const nifPattern = /^[0-9]{8}[A-Z]$/;      // NIF: 8 dígitos + 1 letra
+    const nifPattern = /^[0-9]{8}[A-Z]$/;           // NIF: 8 dígitos + 1 letra
     const cifPattern = /^[A-HJ-NP-SUVW][0-9]{7}[0-9A-J]$/; // CIF: 1 letra + 7 dígitos + letra/dígito
     if (!nifPattern.test(value) && !cifPattern.test(value)) {
       return "Formato de NIF/CIF incorrecto";
@@ -52,6 +55,7 @@ export default function RegisterPage() {
     return "";
   };
 
+  // Manejadores de cambios en los inputs
   const handleNifChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase();
     if (/^[A-Za-z0-9]*$/.test(value) && value.length <= 9) {
@@ -104,6 +108,7 @@ export default function RegisterPage() {
     }
   };
 
+  // Manejo del registro
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -131,23 +136,28 @@ export default function RegisterPage() {
     }
 
     try {
+      // 1. Creamos el usuario en Firebase Auth
       const userCred = await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
       const uid = userCred.user.uid;
 
+      // 2. Creamos el doc en Empresas (ahora sí guardamos el email)
       const docRef = await addDoc(collection(db, "Empresas"), {
         nombre: trimmedNombreEmpresa,
         domicilio: trimmedDomicilio,
         nif: trimmedNIF,
         contactPhone: trimmedContactPhone,
         plan: "SIN_PLAN",
+        email: trimmedEmail, // <--- Importante
       });
       const empresaId = docRef.id;
 
+      // 3. Creamos el doc en Users, relacionando uid con la empresa
       await addDoc(collection(db, "Users"), {
         uid,
         empresaId,
       });
 
+      // 4. Redirigimos al panel admin
       router.push("/admin");
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -174,6 +184,7 @@ export default function RegisterPage() {
               required
             />
           </div>
+
           <div className={styles["register-form-group"]}>
             <label className={styles["register-label"]} htmlFor="domicilio">
               Domicilio Legal
@@ -188,6 +199,7 @@ export default function RegisterPage() {
               required
             />
           </div>
+
           <div className={styles["register-form-group"]}>
             <label className={styles["register-label"]} htmlFor="nif">
               NIF / CIF
@@ -207,6 +219,7 @@ export default function RegisterPage() {
             />
             {nifError && <p className={styles["input-error"]}>{nifError}</p>}
           </div>
+
           <div className={styles["register-form-group"]}>
             <label className={styles["register-label"]} htmlFor="contactPhone">
               Teléfono de contacto
@@ -217,9 +230,18 @@ export default function RegisterPage() {
               placeholder="Ej: +34 600 000 000"
               className={styles["register-input"]}
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => {
+                let value = e.target.value;
+                // Permitir solo números y el "+" al inicio
+                if (/^\+?[0-9]*$/.test(value)) {
+                  setContactPhone(value);
+                }
+              }}
+              maxLength={15} // Ajustable según el país
+              required
             />
           </div>
+
           <div className={styles["register-form-group"]}>
             <label className={styles["register-label"]} htmlFor="email">
               Email
@@ -236,6 +258,7 @@ export default function RegisterPage() {
             />
             {emailError && <p className={styles["input-error"]}>{emailError}</p>}
           </div>
+
           <div className={styles["register-form-group"]}>
             <label className={styles["register-label"]} htmlFor="password">
               Contraseña
@@ -252,11 +275,14 @@ export default function RegisterPage() {
             />
             {passwordError && <p className={styles["input-error"]}>{passwordError}</p>}
           </div>
+
           {error && <p className={styles["register-error"]}>{error}</p>}
+
           <button type="submit" className={styles["register-button"]}>
             Registrarme
           </button>
         </form>
+
         <p className={styles["register-extra"]}>
           ¿Ya tienes cuenta?{" "}
           <Link href="/login" className={styles["register-link"]}>
