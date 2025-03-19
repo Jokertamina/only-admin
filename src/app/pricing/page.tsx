@@ -60,7 +60,9 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Función para el plan personalizado:
+  // - Notifica al admin (vía endpoint) enviando email y contactPhone.
+  // - Luego muestra el modal informativo.
   const handleCustomPlan = async () => {
     if (loading) {
       setModalMessage("Cargando información, por favor espera...");
@@ -96,7 +98,7 @@ const PricingPage: React.FC = () => {
     setShowModal(true);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Función para proceder al pago del plan personalizado, si ya se ha acordado el setupFee en Firestore.
   const handleCustomPlanPayment = async () => {
     if (loading) {
       setModalMessage("Cargando información, por favor espera...");
@@ -123,6 +125,10 @@ const PricingPage: React.FC = () => {
       setShowModal(true);
     }
   };
+
+  // Uso dummy para evitar warnings de variables no usadas
+  const _customPlanHandlers = { handleCustomPlan, handleCustomPlanPayment };
+  console.log("Custom plan handlers reservados:", _customPlanHandlers);
 
   return (
     <main className={styles["pricing-container"]}>
@@ -162,7 +168,7 @@ const PricingPage: React.FC = () => {
           disabled={currentPlan === "PREMIUM"}
         />
 
-        {/* Tarjeta de plan personalizado (comentada para no mostrarse en la UI, pero el código se mantiene) */}
+        {/* Tarjeta de plan personalizado (actualmente oculta, se deja comentada) */}
         {/*
         <PricingCard
           plan="Personalizado"
