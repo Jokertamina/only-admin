@@ -19,20 +19,28 @@ export async function POST(request: NextRequest) {
   let body;
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    console.error("[stripe-create] Error al leer el JSON de la petición:", error);
     return NextResponse.json("Invalid JSON", { status: 400 });
   }
 
   const { plan, empresaId } = body as { plan?: string; empresaId?: string };
   if (!plan || !empresaId) {
+    console.error("[stripe-create] Falta información en la petición:", { plan, empresaId });
     return NextResponse.json("Missing required fields", { status: 400 });
   }
+
+  console.log("[stripe-create] Variables de entorno:");
+  console.log("STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "Set" : "Not Set");
+  console.log("PREMIUM_PRICE_ID:", process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID);
+  console.log("BASICO_PRICE_ID:", process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID);
 
   try {
     const empresaRef = adminDb.collection("Empresas").doc(empresaId);
     const empresaSnap = await empresaRef.get();
 
     if (!empresaSnap.exists) {
+      console.error("[stripe-create] Empresa no encontrada en Firestore:", empresaId);
       return NextResponse.json("Empresa no encontrada", { status: 404 });
     }
 
@@ -49,15 +57,16 @@ export async function POST(request: NextRequest) {
         console.log(`[stripe-create] Verificando suscripción en Stripe: ${currentSubscriptionId}`);
         const subscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
 
-        // 🚨 Si la suscripción ya no es válida, eliminamos el ID de Firestore
         if (!subscription || subscription.status === "canceled" || subscription.status === "incomplete_expired") {
-          console.warn("[stripe-create] La suscripción ya no es válida en Stripe. Se procederá a crear una nueva.");
-          await empresaRef.update({ subscriptionId: null }); // Se elimina en Firestore
-          currentSubscriptionId = null; // Evita intentos de actualización
+          console.warn("[stripe-create] La suscripción ya no es válida en Stripe. Se eliminará en Firestore.");
+          await empresaRef.update({ subscriptionId: null });
+          currentSubscriptionId = null;
         } else {
           console.log("[stripe-create] Suscripción activa en Stripe:", subscription);
 
           const currentItem = subscription.items.data[0];
+
+          console.log("[stripe-create] Actualizando suscripción con nuevo plan:", plan);
 
           const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
             items: [
@@ -83,37 +92,47 @@ export async function POST(request: NextRequest) {
     // 🚀 2. Si no hay suscripción activa, crear una nueva
     if (!stripeCustomerId) {
       console.log("[stripe-create] Creando nuevo cliente en Stripe...");
-      const customer = await stripe.customers.create({
-        email: empresaSnap.data()?.email || undefined,
-        metadata: { empresaId },
-      });
+      try {
+        const customer = await stripe.customers.create({
+          email: empresaSnap.data()?.email || undefined,
+          metadata: { empresaId },
+        });
 
-      stripeCustomerId = customer.id;
-      await empresaRef.update({ stripeCustomerId });
-      console.log(`[stripe-create] Nuevo cliente creado en Stripe: ${stripeCustomerId}`);
+        stripeCustomerId = customer.id;
+        await empresaRef.update({ stripeCustomerId });
+        console.log(`[stripe-create] Nuevo cliente creado en Stripe: ${stripeCustomerId}`);
+      } catch (error) {
+        console.error("[stripe-create] Error al crear cliente en Stripe:", error);
+        return NextResponse.json({ error: "Error al crear cliente en Stripe", details: error }, { status: 500 });
+      }
     }
 
     console.log("[stripe-create] Creando nueva suscripción en Stripe...");
-    const subscription = await stripe.subscriptions.create({
-      customer: stripeCustomerId,
-      items: [
-        {
-          price:
-            plan === "PREMIUM"
-              ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
-              : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-        },
-      ],
-      metadata: { empresaId, plan },
-    });
+    try {
+      const subscription = await stripe.subscriptions.create({
+        customer: stripeCustomerId,
+        items: [
+          {
+            price:
+              plan === "PREMIUM"
+                ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+                : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
+          },
+        ],
+        metadata: { empresaId, plan },
+      });
 
-    await empresaRef.update({ subscriptionId: subscription.id });
-    console.log("[stripe-create] Nueva suscripción creada:", subscription.id);
+      await empresaRef.update({ subscriptionId: subscription.id });
+      console.log("[stripe-create] Nueva suscripción creada:", subscription.id);
 
-    return NextResponse.json({ subscriptionId: subscription.id });
+      return NextResponse.json({ subscriptionId: subscription.id });
+    } catch (error) {
+      console.error("[stripe-create] Error al crear la suscripción en Stripe:", error);
+      return NextResponse.json({ error: "Error al crear la suscripción", details: error }, { status: 500 });
+    }
 
   } catch (error: unknown) {
-    console.error("[stripe-create] Stripe error:", error);
+    console.error("[stripe-create] Error inesperado en el servidor:", error);
     return NextResponse.json({ error: "Internal Server Error", details: error }, { status: 500 });
   }
 }
