@@ -37,13 +37,19 @@ export async function POST(request: NextRequest) {
     }
 
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
-    const currentSubscriptionId = empresaSnap.data()?.subscriptionId; // ⬅️ Cambiado de let a const
+    const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
+    const currentPlan = empresaSnap.data()?.plan; // Extraemos el plan actual
 
-    // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
+    console.log(`[stripe-create] Empresa encontrada: ${empresaId}`);
+    console.log(`[stripe-create] Plan actual: ${currentPlan}`);
+    console.log(`[stripe-create] Plan solicitado: ${plan}`);
+    console.log(`[stripe-create] Suscripción activa en Stripe: ${currentSubscriptionId}`);
+
+    // 🚀 1. Si el usuario tiene una suscripción activa
     if (currentSubscriptionId) {
       try {
         await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: true, // Cancela al final del ciclo actual
+          cancel_at_period_end: true, // Marca la suscripción para cancelarse al final del ciclo
         });
         console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
       } catch (error) {
@@ -51,7 +57,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Si el usuario no tiene un cliente en Stripe, lo creamos
+    // 🚀 2. Si el usuario está bajando de Premium a Básico, esperar hasta que finalice el ciclo
+    if (currentPlan === "PREMIUM" && plan === "BASICO") {
+      console.log("[stripe-create] Cambio de PREMIUM a BÁSICO detectado. Se aplicará después del ciclo actual.");
+      return NextResponse.json({
+        message: "El plan Básico se activará cuando termine el ciclo del plan Premium.",
+      });
+    }
+
+    // 🚀 3. Si el usuario no tiene un cliente en Stripe, lo creamos
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
@@ -62,26 +76,31 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // Crear la sesión de pago en Stripe
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
-      customer: stripeCustomerId,
-      line_items: [
-        {
-          price:
-            plan === "PREMIUM"
-              ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
-              : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-      metadata: { empresaId, plan },
-    });
+    // 🚀 4. Crear la sesión de pago en Stripe si el usuario está subiendo de plan o activando por primera vez
+    if (currentPlan !== "PREMIUM" || plan === "PREMIUM") {
+      console.log("[stripe-create] Creando nueva suscripción...");
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+        cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+        customer: stripeCustomerId,
+        line_items: [
+          {
+            price:
+              plan === "PREMIUM"
+                ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+                : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
+            quantity: 1,
+          },
+        ],
+        metadata: { empresaId, plan },
+      });
 
-    console.log("[stripe-create] Sesión creada:", session.id);
-    return NextResponse.json({ url: session.url });
+      console.log("[stripe-create] Sesión creada:", session.id);
+      return NextResponse.json({ url: session.url });
+    }
+
+    return NextResponse.json({ message: "El cambio de plan se programó correctamente." });
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });
