@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-
-// IMPORTA FIREBASE ADMIN SDK EN LUGAR DEL SDK DE CLIENTE
-import { adminDb } from "../../../lib/firebaseAdminConfig"; // Se usa Admin SDK en lugar de db
+import { adminDb } from "../../../lib/firebaseAdminConfig"; // Usamos Admin SDK
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia",
@@ -11,7 +9,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 export async function POST(request: NextRequest) {
   console.log("[stripe-create] Método recibido:", request.method);
 
-  // Verificamos que se trate de una petición POST
   if (request.method !== "POST") {
     return NextResponse.json("Method Not Allowed", {
       status: 405,
@@ -32,21 +29,57 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1) Obtenemos el doc de la empresa en Firestore usando Admin SDK
     const empresaRef = adminDb.collection("Empresas").doc(empresaId);
     const empresaSnap = await empresaRef.get();
 
-    let stripeCustomerId: string | undefined;
-
-    if (empresaSnap.exists) {
-      // Leemos si ya existe el campo stripeCustomerId
-      stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
+    if (!empresaSnap.exists) {
+      return NextResponse.json("Empresa no encontrada", { status: 404 });
     }
 
-    // 2) Si no existe, creamos un nuevo customer en Stripe y lo guardamos en Firestore
+    let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
+    const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
+
+    // 🚀 1. Verificar si el usuario tiene una suscripción activa
+    if (currentSubscriptionId) {
+      try {
+        console.log(`[stripe-create] Verificando suscripción en Stripe: ${currentSubscriptionId}`);
+    
+        const subscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
+    
+        // 🚨 Verificar si la suscripción ya está cancelada
+        if (!subscription || subscription.status === "canceled" || subscription.status === "incomplete_expired") {
+          console.error("[stripe-create] La suscripción ya está cancelada o no válida en Stripe.");
+          throw new Error("La suscripción no está activa en Stripe.");
+        }
+    
+        const currentItem = subscription.items.data[0];
+    
+        const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+          items: [
+            {
+              id: currentItem.id,
+              price: plan === "PREMIUM"
+                ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+                : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
+            },
+          ],
+          proration_behavior: "create_prorations",
+        });
+    
+        console.log(`[stripe-create] Suscripción actualizada con éxito: ${updatedSubscription.id}`);
+        return NextResponse.json({ subscriptionId: updatedSubscription.id });
+    
+      } catch (error) {
+        console.error("[stripe-create] Error al actualizar la suscripción en Stripe:", error);
+        return NextResponse.json({ error: "Error al actualizar suscripción", details: error }, { status: 500 });
+      }
+    }
+    
+
+    // 🚀 3. Si no hay suscripción activa, crear una nueva
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        email: empresaSnap.data()?.email || undefined, // Si hay email en Firestore, se usa
+        email: empresaSnap.data()?.email || undefined,
         metadata: { empresaId },
       });
 
@@ -54,26 +87,24 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // 3) Creamos la sesión de Checkout asociada al customer existente o recién creado
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
-      customer: stripeCustomerId, // Usamos el mismo cliente
-      line_items: [
+    const subscription = await stripe.subscriptions.create({
+      customer: stripeCustomerId,
+      items: [
         {
           price:
             plan === "PREMIUM"
               ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
               : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-          quantity: 1,
         },
       ],
       metadata: { empresaId, plan },
     });
 
-    console.log("[stripe-create] Sesión creada:", session.id);
-    return NextResponse.json({ url: session.url });
+    await empresaRef.update({ subscriptionId: subscription.id });
+
+    console.log("[stripe-create] Nueva suscripción creada:", subscription.id);
+    return NextResponse.json({ subscriptionId: subscription.id });
+
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });
