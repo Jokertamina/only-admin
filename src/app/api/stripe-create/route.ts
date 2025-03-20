@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig"; // Usamos Admin SDK
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+// Extiende la interfaz para incluir propiedades extras para actualizar la suscripción
+interface ExtendedSessionCreateParams extends Stripe.Checkout.SessionCreateParams {
+  subscription?: string;
+  subscription_update?: {
+    items: { id: string; price: string }[];
+    proration_behavior: "always_invoice" | "create_prorations" | "none";
+  };
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
 });
 
@@ -38,13 +47,13 @@ export async function POST(request: NextRequest) {
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
     const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
-    // Determinamos el priceId según el plan solicitado
+    // Usamos "!" para afirmar que las variables de entorno existen.
     const newPriceId =
       plan === "PREMIUM"
-        ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
-        : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID;
+        ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!
+        : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
 
-    // Si no existe cliente en Stripe, lo creamos
+    // Si no existe cliente en Stripe, lo creamos.
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
@@ -54,21 +63,20 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // Si hay suscripción activa
+    // Si hay suscripción activa.
     if (currentSubscriptionId) {
       const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
       const currentPriceId = currentSubscription.items.data[0]?.price?.id;
 
-      // Si ya está en el mismo plan, no hacemos nada
+      // Si ya está en el mismo plan, no hacemos nada.
       if (currentPriceId === newPriceId) {
         return NextResponse.json({ message: "Ya estás en el plan solicitado" });
       }
 
       // Upgrade: de Básico a Premium
       if (plan === "PREMIUM") {
-        // Creamos una sesión de Checkout en modo "subscription" con actualización
-        // Se usa "as any" para forzar los parámetros que no están reconocidos por los tipos
-        const session = await stripe.checkout.sessions.create({
+        // Construimos parámetros extendidos para actualizar la suscripción actual.
+        const params: ExtendedSessionCreateParams = {
           mode: "subscription",
           customer: stripeCustomerId,
           subscription: currentSubscriptionId,
@@ -84,26 +92,28 @@ export async function POST(request: NextRequest) {
           success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
           cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
           metadata: { empresaId, plan },
-        } as any);
+        };
+
+        const session = await stripe.checkout.sessions.create(params);
         console.log("[stripe-create] Checkout session for upgrade created:", session.id);
         return NextResponse.json({ url: session.url });
       }
 
       // Downgrade: de Premium a Básico
       if (plan === "BASICO") {
-        // Marcamos la suscripción actual para que se cancele al final del ciclo
+        // Marcamos la suscripción actual para que se cancele al final del ciclo.
         await stripe.subscriptions.update(currentSubscriptionId, {
           cancel_at_period_end: true,
         });
         console.log("Suscripción marcada para cancelación al final del ciclo Premium");
 
-        // Actualizamos Firestore indicando downgrade programado
+        // Actualizamos Firestore indicando que se ha programado un downgrade.
         await empresaRef.update({
           plan: "BASICO",
           downgradePending: true,
         });
 
-        // Creamos una sesión de Checkout para la nueva suscripción que se activará luego
+        // Creamos una sesión de Checkout para la nueva suscripción que se activará luego.
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
           success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
@@ -125,7 +135,7 @@ export async function POST(request: NextRequest) {
         });
       }
     } else {
-      // Sin suscripción previa, creamos la sesión de Checkout para una nueva suscripción
+      // Sin suscripción previa, creamos la sesión de Checkout para una nueva suscripción.
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
