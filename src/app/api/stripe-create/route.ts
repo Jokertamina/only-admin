@@ -37,51 +37,95 @@ export async function POST(request: NextRequest) {
     }
 
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
-    const currentSubscriptionId = empresaSnap.data()?.subscriptionId; // ⬅️ Cambiado de let a const
+    const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
-    // Si el usuario tiene una suscripción activa, la cancelamos en Stripe
-    if (currentSubscriptionId) {
-      try {
-        await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: true, // Cancela al final del ciclo actual
-        });
-        console.log(`[stripe-create] Suscripción anterior ${currentSubscriptionId} marcada para cancelación.`);
-      } catch (error) {
-        console.error("[stripe-create] Error al cancelar suscripción anterior:", error);
-      }
-    }
+    // Determinar el priceId según el plan solicitado
+    const newPriceId =
+      plan === "PREMIUM"
+        ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+        : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID;
 
-    // Si el usuario no tiene un cliente en Stripe, lo creamos
+    // Si no existe cliente en Stripe, lo creamos
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: empresaSnap.data()?.email || undefined,
         metadata: { empresaId },
       });
-
       stripeCustomerId = customer.id;
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // Crear la sesión de pago en Stripe
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
-      customer: stripeCustomerId,
-      line_items: [
-        {
-          price:
-            plan === "PREMIUM"
-              ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
-              : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-      metadata: { empresaId, plan },
-    });
+    // Si hay una suscripción activa, verificamos si es upgrade o downgrade
+    if (currentSubscriptionId) {
+      const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
+      const oldPriceId = currentSubscription.items.data[0]?.price?.id;
 
-    console.log("[stripe-create] Sesión creada:", session.id);
-    return NextResponse.json({ url: session.url });
+      // Si el plan es el mismo, no hacemos nada
+      if (oldPriceId === newPriceId) {
+        return NextResponse.json({ message: "Ya estás en el plan solicitado" });
+      }
+
+      // Upgrade: de Básico a Premium (inmediato, con prorrateo)
+      if (plan === "PREMIUM") {
+        const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+          cancel_at_period_end: false, // Revierte cancelación previa si existe
+          proration_behavior: "always_invoice",
+          items: [
+            {
+              id: currentSubscription.items.data[0].id,
+              price: newPriceId,
+            },
+          ],
+        });
+        console.log("Suscripción actualizada (upgrade):", updatedSubscription.id);
+        await empresaRef.update({ subscriptionId: updatedSubscription.id, plan: "PREMIUM" });
+        return NextResponse.json({
+          message: "Suscripción actualizada a Premium de forma inmediata",
+        });
+      }
+
+      // Downgrade: de Premium a Básico (programado al final del ciclo actual)
+      if (plan === "BASICO") {
+        // Creamos una Subscription Schedule a partir de la suscripción existente
+        const schedule = await stripe.subscriptionSchedules.create({
+          from_subscription: currentSubscriptionId,
+          start_date: currentSubscription.current_period_end, // inicia cuando termine el ciclo actual
+          end_behavior: "release",
+          phases: [
+            {
+              items: [
+                { price: newPriceId, quantity: 1 },
+              ],
+            },
+          ],
+        });
+
+        console.log("Downgrade programado con subscription schedule:", schedule.id);
+        await empresaRef.update({ plan: "BASICO" });
+        return NextResponse.json({
+          message: "Downgrade programado. El plan Básico se activará al finalizar el periodo Premium",
+        });
+      }
+    } else {
+      // Sin suscripción previa, creamos la sesión de checkout para una nueva suscripción
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+        cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+        customer: stripeCustomerId,
+        line_items: [
+          {
+            price: newPriceId,
+            quantity: 1,
+          },
+        ],
+        metadata: { empresaId, plan },
+      });
+      console.log("[stripe-create] Sesión creada:", session.id);
+      return NextResponse.json({ url: session.url });
+    }
+
+    return NextResponse.json({ message: "Operación completada" });
   } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });
