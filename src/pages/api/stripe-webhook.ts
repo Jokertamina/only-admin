@@ -1,4 +1,4 @@
-// src/pages/api/stripe-webhook.ts (o /app/api/stripe-webhook/route.ts)
+// src/pages/api/stripe-webhook.ts
 
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import Stripe from "stripe";
@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     switch (event.type) {
-      // Cuando finaliza el Checkout y se crea una nueva suscripción
+      // 1) checkout.session.completed -> suscripción nueva (o upgrade con Checkout)
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const subscriptionId = session.subscription as string | undefined;
@@ -84,15 +84,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Actualizamos la DB con plan y subscriptionId
         const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
-        await empresaRef.update({ plan, subscriptionId });
+        await empresaRef.update({ plan, subscriptionId, downgradePending: false });
         console.log(`[stripe-webhook] Nueva suscripción: plan=${plan}, subId=${subscriptionId}, empresa=${empresaId}`);
         break;
       }
 
-      // Cuando cambia una suscripción, p. ej. al llegar la fecha del Subscription Schedule
-      case "customer.subscription.updated": {
+      // 2) customer.subscription.updated o customer.subscription.deleted
+      //    -> se usa para detectar cambio de precio (schedule) o cancelaciones.
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log("[stripe-webhook] subscription.updated:", subscription.id, subscription.items.data[0]?.price?.id);
+        console.log(`[stripe-webhook] Evento: ${event.type}, subId=${subscription.id}, status=${subscription.status}`);
 
         // Buscamos la empresa con subscriptionId = subscription.id
         const snap = await admin
@@ -101,27 +103,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .where("subscriptionId", "==", subscription.id)
           .get();
 
-        if (!snap.empty) {
-          snap.forEach(async (doc) => {
-            const empresaData = doc.data();
-
-            // Si tenía un downgradePending y Stripe ya cambió el plan
-            // a Basic Price ID, entonces actualizamos plan en la DB.
-            if (empresaData.downgradePending === true) {
-              // Comprobamos si en la suscripción actual ya está el precio de BASICO
-              const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-              const newPriceId = subscription.items.data[0]?.price?.id;
-
-              if (newPriceId === basicPriceId) {
-                console.log("[stripe-webhook] Se completó el downgrade para la empresa:", doc.id);
-                await doc.ref.update({
-                  plan: "BASICO",
-                  downgradePending: false,
-                });
-              }
-            }
-          });
+        if (snap.empty) {
+          console.log(`[stripe-webhook] No se encontró empresa con subscriptionId=${subscription.id}`);
+          break;
         }
+
+        snap.forEach(async (doc) => {
+          const empresaData = doc.data();
+          const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+          const newPriceId = subscription.items.data[0]?.price?.id;
+
+          // Si la suscripción se canceló completamente (status=canceled)
+          if (subscription.status === "canceled") {
+            // Si era un downgrade programado, marcamos plan=BASICO
+            // o, si prefieres, plan="SIN_PLAN" si no era un downgrade.
+            if (empresaData.downgradePending) {
+              console.log(`[stripe-webhook] Suscripción cancelada con downgradePending. Asignamos BASICO. Empresa: ${doc.id}`);
+              await doc.ref.update({
+                plan: "BASICO",
+                downgradePending: false,
+                subscriptionId: "",
+              });
+            } else {
+              console.log(`[stripe-webhook] Suscripción cancelada sin downgradePending. Empresa: ${doc.id}`);
+              // Ejemplo: pon plan="SIN_PLAN" si quieres reflejar que ya no tiene suscripción
+              await doc.ref.update({
+                plan: "SIN_PLAN",
+                subscriptionId: "",
+              });
+            }
+          }
+          // Si la suscripción sigue activa, comprobamos si cambió el precio a Básico
+          else {
+            if (empresaData.downgradePending === true && newPriceId === basicPriceId) {
+              console.log("[stripe-webhook] Downgrade completado (schedule) para la empresa:", doc.id);
+              await doc.ref.update({
+                plan: "BASICO",
+                downgradePending: false,
+              });
+            }
+          }
+        });
         break;
       }
 
