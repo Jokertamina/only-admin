@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
     if (!currentSubscriptionId) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        success_url: "https://tudominio.com/payment-success",
-        cancel_url: "https://tudominio.com/payment-cancel",
+        success_url: "https://adminpanel-rust-seven.vercel.app//payment-success",
+        cancel_url: "https://adminpanel-rust-seven.vercel.app//payment-cancel",
         customer: stripeCustomerId,
         line_items: [{ price: newPriceId, quantity: 1 }],
         metadata: { empresaId, plan },
