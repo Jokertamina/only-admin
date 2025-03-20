@@ -1,5 +1,5 @@
-// /pages/api/stripe-create.ts (Pages Router)
-// o /app/api/stripe-create/route.ts (App Router)
+// /pages/api/stripe-create.ts (si usas Pages Router)
+// o /app/api/stripe-create/route.ts (si usas App Router)
 
 import { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
@@ -41,11 +41,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let stripeCustomerId = data.stripeCustomerId;
     const currentSubscriptionId = data.subscriptionId;
 
-    // 2) Determinamos el Price ID directamente, sin variables intermedias
-    const newPriceId =
-      plan === "PREMIUM"
-        ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!
-        : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+    // 2) Determinamos los Price IDs
+    const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
+    const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+    const newPriceId = plan === "PREMIUM" ? premiumPriceId : basicPriceId;
 
     // 3) Creamos cliente Stripe si no existe
     if (!stripeCustomerId) {
@@ -71,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
 
-      // No seteamos el plan aquí; lo hará el webhook (checkout.session.completed)
+      // No seteamos el plan aquí; lo hará el webhook checkout.session.completed
       return res.status(200).json({
         url: session.url,
         message: "Sesión de pago creada. Completa el pago para activar tu plan.",
@@ -116,6 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // --- DOWNGRADE (Premium → Básico) ---
     if (plan === "BASICO") {
       // Creamos un schedule para cambiar el precio al final del ciclo
+      // Sin start_date, Stripe lo calcula automáticamente al final del ciclo
       const schedule = await stripe.subscriptionSchedules.create({
         from_subscription: currentSubscriptionId,
         end_behavior: "release",

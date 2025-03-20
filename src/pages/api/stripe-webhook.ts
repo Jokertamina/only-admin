@@ -26,6 +26,7 @@ if (!admin.apps.length) {
   }
 }
 
+// Para obtener el raw body
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -51,7 +52,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET!);
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
   } catch (err) {
     console.error("[stripe-webhook] Error verificando firma:", err);
     return res.status(400).send(`Webhook Error: ${err}`);
@@ -81,8 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       }
 
-      // 2) customer.subscription.updated 
-      //    -> Ocurre cuando la suscripción cambia de precio (por schedule) o se renueva
+      // 2) customer.subscription.updated
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log("[stripe-webhook] subscription.updated:", subscription.id, subscription.items.data[0]?.price?.id);
@@ -100,16 +104,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Revisamos el price actual en la sub
         const newPriceId = subscription.items.data[0]?.price?.id;
-        // Recolectamos IDs
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-        const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
 
         snap.forEach(async (doc) => {
           const empresaData = doc.data();
           const ref = doc.ref;
 
-          // 2.1. Caso: Si era un downgrade programado (proximo_plan= "BÁSICO")
-          // y Stripe cambió el precio al plan Básico, finalizamos el downgrade
+          // Si era un downgrade programado (proximo_plan = "BASICO") y Stripe cambió el precio a Básico
           if (empresaData.proximo_plan === "BASICO" && newPriceId === basicPriceId) {
             console.log("[stripe-webhook] Downgrade completado para empresa:", doc.id);
             await ref.update({
@@ -117,14 +118,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               proximo_plan: "",
             });
           }
-          // 2.2. (Opcional) Si detectas que era un upgrade programado o algo similar
-          // Podrías manejar otros casos si quisieras
         });
         break;
       }
 
       // 3) customer.subscription.deleted
-      //    -> si se cancela completamente la suscripción (manual o al final)
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log("[stripe-webhook] subscription.deleted:", subscription.id);
@@ -135,8 +133,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (!snap.empty) {
           snap.forEach(async (doc) => {
-            // Podrías poner plan="SIN_PLAN", subscriptionId="", proximo_plan="" 
-            // para reflejar que ya no tiene suscripción
             console.log("[stripe-webhook] Suscripción eliminada. Empresa:", doc.id);
             await doc.ref.update({
               estado_plan: "SIN_PLAN",
