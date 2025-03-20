@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { auth, db } from "../../lib/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "../styles/RegisterPage.module.css"; // Importa el CSS Module
@@ -150,13 +150,40 @@ export default function RegisterPage() {
       });
       const empresaId = docRef.id;
 
-      // 3. Creamos el documento en Users, relacionando uid con la empresa
+      // 3. Creamos el documento en "Users", relacionando uid con la empresa
       await addDoc(collection(db, "Users"), {
         uid,
         empresaId,
       });
 
-      // 4. Redirigimos al panel admin
+      // 4. Rechequeo opcional: esperas a que "Users" realmente contenga el campo "empresaId"
+      //   para evitar problemas de sincronización.
+      //   Con unos pequeños reintentos, reduces la posibilidad de que /admin no lo "vea" a la primera.
+      let foundEmpresaId = false;
+      const usersRef = collection(db, "Users");
+      const MAX_ATTEMPTS = 3;
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        // Espera 100ms entre intentos (puedes ajustar a tu gusto)
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        const q = query(usersRef, where("uid", "==", uid));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const userDoc = snap.docs[0].data();
+          if (userDoc.empresaId === empresaId) {
+            foundEmpresaId = true;
+            console.log(`[Registro] Confirmado empresaId ${empresaId} en la doc de Users (Intento ${attempt}).`);
+            break;
+          }
+        }
+      }
+
+      if (!foundEmpresaId) {
+        console.warn("[Registro] No se detectó empresaId en la colección 'Users' tras varios intentos, pero continuamos...");
+      }
+
+      // 5. Redirigimos al panel admin
       router.push("/admin");
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
