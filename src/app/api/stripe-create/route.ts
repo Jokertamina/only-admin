@@ -96,27 +96,23 @@ export async function POST(request: NextRequest) {
 
       // Downgrade: de Premium a Básico (programado al final del ciclo actual)
       if (plan === "BASICO") {
-        // Creamos una Subscription Schedule a partir de la suscripción existente
-        const schedule = await stripe.subscriptionSchedules.create({
-          from_subscription: currentSubscriptionId,
-          start_date: currentSubscription.current_period_end,
-          end_behavior: "release",
-          phases: [
-            {
-              items: [{ price: newPriceId, quantity: 1 }],
-            },
-          ],
+        // Marcamos la suscripción Premium para que se cancele al final del periodo actual
+        await stripe.subscriptions.update(currentSubscriptionId, {
+          cancel_at_period_end: true,
         });
-        console.log("Downgrade programado con subscription schedule:", schedule.id);
+        console.log("Suscripción marcada para cancelación al final del ciclo Premium");
 
-        // Guardamos el subscriptionScheduleId en DB
+        // Actualizamos la BD para reflejar que se ha programado el downgrade.
+        // Luego, en un webhook (por ejemplo, en el evento customer.subscription.deleted),
+        // deberás crear o activar la suscripción Básico.
         await empresaRef.update({
           plan: "BASICO",
-          subscriptionScheduleId: schedule.id,
+          // Puedes agregar un flag adicional, por ejemplo: downgradePending: true
         });
 
         return NextResponse.json({
-          message: "Downgrade programado. El plan Básico se activará al finalizar el periodo Premium",
+          message:
+            "Downgrade programado. Mantendrás Premium hasta el final del ciclo actual. Al finalizar, se activará el plan Básico y se cobrará su importe.",
         });
       }
     } else {
@@ -136,8 +132,7 @@ export async function POST(request: NextRequest) {
       });
       console.log("[stripe-create] Sesión creada:", session.id);
 
-      // Aún no tenemos subscriptionId aquí, porque la suscripción se crea tras el pago.
-      // Suele manejarse en el webhook `checkout.session.completed` o `customer.subscription.created`.
+      // La suscripción se creará tras el pago; generalmente se actualiza la BD en el webhook correspondiente.
 
       return NextResponse.json({ url: session.url });
     }
