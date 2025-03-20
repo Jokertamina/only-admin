@@ -45,7 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Manejo de preflight OPTIONS
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, stripe-signature"
+    );
     return res.status(200).send("OK");
   }
 
@@ -102,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log(`[stripe-webhook] 🔹 Actualizando Firestore para empresa: ${empresaId}`);
 
-        // Guardamos en Firestore usando una transacción para evitar problemas de concurrencia
+        // Guardamos en Firestore usando una **transacción** para evitar problemas de concurrencia
         await admin.firestore().runTransaction(async (transaction) => {
           transaction.update(empresaRef, {
             plan,
@@ -113,58 +116,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(
           `[stripe-webhook] ✅ Firestore actualizado: Plan (${plan}) y Subscription ID (${subscriptionId}) para empresa: ${empresaId}`
         );
-
-        break;
-      }
-
-      case "customer.subscription.deleted": {
-        // Este evento se dispara al cancelar la suscripción, ya sea por downgrade programado o por cancelación manual.
-        const subscription = event.data.object as Stripe.Subscription;
-        console.log(`[stripe-webhook] Suscripción cancelada: ${subscription.id}`);
-
-        // Buscamos en Firestore la empresa que tenía esta suscripción.
-        const empresasSnapshot = await admin.firestore()
-          .collection("Empresas")
-          .where("subscriptionId", "==", subscription.id)
-          .get();
-
-        if (empresasSnapshot.empty) {
-          console.error(`[stripe-webhook] ❌ No se encontró empresa con subscriptionId ${subscription.id}`);
-          break;
-        }
-
-        empresasSnapshot.forEach(async (doc) => {
-          const empresaId = doc.id;
-          const empresaData = doc.data();
-
-          // Solo actuamos si se había programado un downgrade (flag downgradePending true)
-          if (empresaData.downgradePending === true) {
-            try {
-              // Creamos una nueva suscripción para el plan Básico.
-              const newSubscription = await stripe.subscriptions.create({
-                customer: empresaData.stripeCustomerId,
-                items: [{ price: process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!, quantity: 1 }],
-              });
-              console.log(
-                `[stripe-webhook] Nueva suscripción BASICO creada (${newSubscription.id}) para la empresa ${empresaId}`
-              );
-              // Actualizamos Firestore: guardamos el nuevo subscriptionId y limpiamos el flag.
-              await admin.firestore().collection("Empresas").doc(empresaId).update({
-                subscriptionId: newSubscription.id,
-                downgradePending: false,
-              });
-            } catch (error) {
-              console.error(
-                `[stripe-webhook] Error creando nueva suscripción BASICO para la empresa ${empresaId}:`,
-                error
-              );
-            }
-          } else {
-            console.log(
-              `[stripe-webhook] Cancelación de suscripción ${subscription.id} para la empresa ${empresaId} sin downgradePending. No se crea nueva suscripción.`
-            );
-          }
-        });
 
         break;
       }

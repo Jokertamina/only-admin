@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
   try {
     const empresaRef = adminDb.collection("Empresas").doc(empresaId);
     const empresaSnap = await empresaRef.get();
-
     if (!empresaSnap.exists) {
       return NextResponse.json("Empresa no encontrada", { status: 404 });
     }
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
     const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
-    // Determinar el priceId según el plan solicitado
+    // Determinamos el priceId según el plan solicitado
     const newPriceId =
       plan === "PREMIUM"
         ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
@@ -55,64 +54,73 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // Si hay una suscripción activa, verificamos si es upgrade o downgrade
+    // Si hay suscripción activa
     if (currentSubscriptionId) {
       const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
-      const oldPriceId = currentSubscription.items.data[0]?.price?.id;
+      const currentPriceId = currentSubscription.items.data[0]?.price?.id;
 
-      // Si el plan es el mismo, no hacemos nada
-      if (oldPriceId === newPriceId) {
+      // Si ya está en el mismo plan, no hacemos nada
+      if (currentPriceId === newPriceId) {
         return NextResponse.json({ message: "Ya estás en el plan solicitado" });
       }
 
-      // Upgrade: de Básico a Premium (inmediato, con prorrateo)
+      // Upgrade: de Básico a Premium (inmediato con prorrateo)
       if (plan === "PREMIUM") {
-        const updatedSubscription = await stripe.subscriptions.update(
-          currentSubscriptionId,
-          {
-            cancel_at_period_end: false, // Revierte cancelación previa si existe
-            proration_behavior: "always_invoice",
-            items: [
-              {
-                id: currentSubscription.items.data[0].id,
-                price: newPriceId,
-              },
-            ],
-          }
-        );
+        const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+          cancel_at_period_end: false, // Revierte cancelación si la hubiera
+          proration_behavior: "always_invoice",
+          items: [
+            {
+              id: currentSubscription.items.data[0].id,
+              price: newPriceId,
+            },
+          ],
+        });
         console.log("Suscripción actualizada (upgrade):", updatedSubscription.id);
-
-        // Guardamos el nuevo subscriptionId en DB
         await empresaRef.update({
           subscriptionId: updatedSubscription.id,
           plan: "PREMIUM",
-          subscriptionScheduleId: "", // Opcional: limpia este campo si existía
+          downgradePending: false, // Limpiamos el flag por si existía
         });
-
         return NextResponse.json({
           message: "Suscripción actualizada a Premium de forma inmediata",
         });
       }
 
-      // Downgrade: de Premium a Básico (programado al final del ciclo actual)
+      // Downgrade: de Premium a Básico
       if (plan === "BASICO") {
-        // Marcamos la suscripción Premium para que se cancele al final del periodo actual
+        // Marcamos la suscripción actual para cancelarse al final del ciclo
         await stripe.subscriptions.update(currentSubscriptionId, {
           cancel_at_period_end: true,
         });
         console.log("Suscripción marcada para cancelación al final del ciclo Premium");
 
-        // Actualizamos la BD para reflejar que se ha programado el downgrade.
-        // Luego, en un webhook (por ejemplo, en el evento customer.subscription.deleted),
-        // deberás crear o activar la suscripción Básico.
+        // Actualizamos Firestore indicando que se ha programado un downgrade
         await empresaRef.update({
           plan: "BASICO",
-          // Puedes agregar un flag adicional, por ejemplo: downgradePending: true
+          downgradePending: true,
         });
 
+        // Creamos una sesión de checkout para la nueva suscripción
+        // que se activará cuando termine el periodo Premium
+        const session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+          cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+          customer: stripeCustomerId,
+          line_items: [
+            {
+              price: newPriceId,
+              quantity: 1,
+            },
+          ],
+          metadata: { empresaId, plan },
+        });
+        console.log("[stripe-create] Sesión creada:", session.id);
         return NextResponse.json({
+          url: session.url,
           message:
-            "Downgrade programado. Mantendrás Premium hasta el final del ciclo actual. Al finalizar, se activará el plan Básico y se cobrará su importe.",
+            "Downgrade programado. Mantendrás Premium hasta el final del ciclo y luego se activará el plan Básico.",
         });
       }
     } else {
@@ -131,9 +139,6 @@ export async function POST(request: NextRequest) {
         metadata: { empresaId, plan },
       });
       console.log("[stripe-create] Sesión creada:", session.id);
-
-      // La suscripción se creará tras el pago; generalmente se actualiza la BD en el webhook correspondiente.
-
       return NextResponse.json({ url: session.url });
     }
 
