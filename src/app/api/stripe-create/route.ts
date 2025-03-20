@@ -54,8 +54,9 @@ export async function POST(req: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // 4) Si no hay suscripción previa, creamos una nueva sesión de Checkout
+    // 4) Si no hay suscripción previa (plan nuevo)
     if (!currentSubscriptionId) {
+      // Creamos Checkout normal (sin trial, a menos que quieras dárselo también a un nuevo plan)
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
@@ -65,14 +66,14 @@ export async function POST(req: NextRequest) {
         metadata: { empresaId, plan },
       });
       console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
-      // El plan final se setea en el webhook
+      // El webhook se encargará de setear el plan en la DB tras el pago
       return NextResponse.json({
         url: session.url,
         message: "Sesión de pago creada. Completa el pago para activar tu plan.",
       });
     }
 
-    // 5) Hay suscripción activa
+    // 5) Hay suscripción activa (Premium)
     const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
     const currentPriceId = currentSubscription.items.data[0]?.price?.id;
 
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     // --- UPGRADE (Básico → Premium)
     if (plan === "PREMIUM") {
-      // Actualizamos la suscripción de inmediato
+      // Actualizamos la suscripción al momento
       const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
         proration_behavior: "always_invoice",
         items: [
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
       });
       console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
 
-      // Ponemos plan= "PREMIUM" en DB
+      // Actualizamos plan= "PREMIUM" en DB (inmediato)
       await empresaRef.update({
         plan: "PREMIUM",
         estado_plan: "PREMIUM",
@@ -108,23 +109,46 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // --- DOWNGRADE (Premium → Básico)
+    // --- DOWNGRADE (Premium → Básico), con trial que finaliza el día que acaba Premium
     if (plan === "BASICO") {
-      // Cancelamos la suscripción actual al final del ciclo
+      // 1) Cancelamos Premium al final del ciclo
       await stripe.subscriptions.update(currentSubscriptionId, {
         cancel_at_period_end: true,
       });
-      console.log(`[stripe-create] Suscripción marcada para cancelación al final del ciclo: ${currentSubscriptionId}`);
+      console.log(
+        `[stripe-create] Suscripción Premium marcada para cancelar al final del ciclo: ${currentSubscriptionId}`
+      );
 
-      // Mantenemos plan= "PREMIUM" y marcamos downgradePending= true
+      // 2) Creamos un Checkout Session para Básico con un trial que termina el mismo día
+      const periodEnd = currentSubscription.current_period_end; // un UNIX timestamp
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
+        customer: stripeCustomerId,
+        line_items: [{ price: basicPriceId, quantity: 1 }],
+        subscription_data: {
+          trial_end: periodEnd, // El trial durará hasta que acabe Premium
+          metadata: {
+            empresaId,
+            plan: "BASICO",
+          },
+        },
+      });
+      console.log("[stripe-create] Checkout con trial hasta:", periodEnd);
+
+      // 3) DB: plan sigue en PREMIUM, marcamos "downgradePending" si lo deseas
+      //   (Aunque en realidad, ya se está creando una sub en trial)
       await empresaRef.update({
-        plan: "PREMIUM",
+        plan: "PREMIUM",           // sigue con Premium hasta que finalice
         estado_plan: "PREMIUM",
-        downgradePending: true,
+        downgradePending: true,    // para saber que hay un trial en marcha
       });
 
       return NextResponse.json({
-        message: "Se ha programado la cancelación de Premium. Mantendrás Premium hasta el fin del ciclo, luego se activará Básico.",
+        url: session.url,
+        message:
+          "Se ha programado la cancelación de Premium y la creación de Básico en trial. Mantendrás Premium hasta el fin del ciclo, luego se activará Básico automáticamente.",
       });
     }
 

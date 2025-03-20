@@ -1,6 +1,4 @@
-// src/pages/api/stripe-webhook.ts (Pages Router)
-// o src/app/api/stripe-webhook/route.ts (App Router)
-
+// src/pages/api/stripe-webhook.ts
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
@@ -37,6 +35,7 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("[stripe-webhook] Método recibido:", req.method);
+
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
@@ -76,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).send("Faltan datos en la sesión.");
         }
 
-        // Actualizamos la DB para reflejar el nuevo plan
+        // Actualizamos la DB con plan = BÁSICO (aunque realmente está en trial)
         const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
         await empresaRef.update({
           plan,
@@ -84,12 +83,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           subscriptionId,
           downgradePending: false,
         });
-        console.log(`[stripe-webhook] Nueva suscripción completada: plan=${plan}, subId=${subscriptionId}, empresa=${empresaId}`);
+        console.log(`[stripe-webhook] Suscripción creada/actualizada via Checkout: plan=${plan}, subId=${subscriptionId}, empresa=${empresaId}`);
         break;
       }
 
       // 2) customer.subscription.deleted
-      //    -> Al finalizar el ciclo, Premium pasa a status=canceled si cancel_at_period_end: true
+      //    -> Por si se cancela por otro motivo (inmediato en Stripe)
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log("[stripe-webhook] subscription.deleted:", subscription.id);
@@ -106,54 +105,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         for (const doc of snap.docs) {
-          const empresaData = doc.data();
-          const empresaRef = doc.ref;
-          const empresaId = doc.id;
-
-          console.log(`[stripe-webhook] Suscripción Premium cancelada. Empresa: ${empresaId}`);
-
-          // Si tenía downgradePending, creamos la nueva suscripción de Básico
-          if (empresaData.downgradePending) {
-            console.log(`[stripe-webhook] Creando nueva suscripción Básico para la empresa ${empresaId}...`);
-
-            // 1. Obtenemos (o creamos) el stripeCustomerId
-            let stripeCustomerId = empresaData.stripeCustomerId;
-            if (!stripeCustomerId) {
-              // Caso raro, pero por si no existiera
-              const customer = await stripe.customers.create({
-                email: empresaData.email || undefined,
-                metadata: { empresaId },
-              });
-              stripeCustomerId = customer.id;
-              await empresaRef.update({ stripeCustomerId });
-            }
-
-            // 2. Creamos la suscripción al plan Básico
-            const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-            const newSubscription = await stripe.subscriptions.create({
-              customer: stripeCustomerId,
-              items: [{ price: basicPriceId }],
-              metadata: { empresaId, plan: "BASICO" },
-            });
-
-            console.log(`[stripe-webhook] Nueva suscripción Básico creada: ${newSubscription.id}`);
-
-            // 3. Actualizamos la DB: plan=BASICO y downgradePending=false
-            await empresaRef.update({
-              plan: "BASICO",
-              estado_plan: "BASICO",
-              subscriptionId: newSubscription.id,
-              downgradePending: false,
-            });
-          } else {
-            // Si no era un downgrade
-            console.log(`[stripe-webhook] Empresa ${empresaId} sin downgradePending => plan=SIN_PLAN`);
-            await empresaRef.update({
-              plan: "SIN_PLAN",
-              estado_plan: "SIN_PLAN",
-              subscriptionId: "",
-            });
-          }
+          console.log(`[stripe-webhook] Suscripción cancelada: ${subscription.id}, Empresa: ${doc.id}`);
+          // Pon plan = "SIN_PLAN" si no hay logic de re-crear nada
+          await doc.ref.update({
+            plan: "SIN_PLAN",
+            estado_plan: "SIN_PLAN",
+            subscriptionId: "",
+          });
         }
         break;
       }
