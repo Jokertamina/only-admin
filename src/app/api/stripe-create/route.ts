@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       // Aquí hacemos Checkout Session para que el usuario pague el plan.
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        success_url: "https://tudominio.com/payment-success",
-        cancel_url: "https://tudominio.com/payment-cancel",
+        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
         customer: stripeCustomerId,
         line_items: [
           { price: newPriceId, quantity: 1 },
