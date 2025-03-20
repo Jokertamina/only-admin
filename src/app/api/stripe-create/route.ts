@@ -67,18 +67,28 @@ export async function POST(request: NextRequest) {
 
       // Upgrade: de Básico a Premium (inmediato, con prorrateo)
       if (plan === "PREMIUM") {
-        const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: false, // Revierte cancelación previa si existe
-          proration_behavior: "always_invoice",
-          items: [
-            {
-              id: currentSubscription.items.data[0].id,
-              price: newPriceId,
-            },
-          ],
-        });
+        const updatedSubscription = await stripe.subscriptions.update(
+          currentSubscriptionId,
+          {
+            cancel_at_period_end: false, // Revierte cancelación previa si existe
+            proration_behavior: "always_invoice",
+            items: [
+              {
+                id: currentSubscription.items.data[0].id,
+                price: newPriceId,
+              },
+            ],
+          }
+        );
         console.log("Suscripción actualizada (upgrade):", updatedSubscription.id);
-        await empresaRef.update({ subscriptionId: updatedSubscription.id, plan: "PREMIUM" });
+
+        // Guardamos el nuevo subscriptionId en DB
+        await empresaRef.update({
+          subscriptionId: updatedSubscription.id,
+          plan: "PREMIUM",
+          subscriptionScheduleId: "", // Opcional: limpia este campo si existía
+        });
+
         return NextResponse.json({
           message: "Suscripción actualizada a Premium de forma inmediata",
         });
@@ -89,19 +99,22 @@ export async function POST(request: NextRequest) {
         // Creamos una Subscription Schedule a partir de la suscripción existente
         const schedule = await stripe.subscriptionSchedules.create({
           from_subscription: currentSubscriptionId,
-          start_date: currentSubscription.current_period_end, // inicia cuando termine el ciclo actual
+          start_date: currentSubscription.current_period_end,
           end_behavior: "release",
           phases: [
             {
-              items: [
-                { price: newPriceId, quantity: 1 },
-              ],
+              items: [{ price: newPriceId, quantity: 1 }],
             },
           ],
         });
-
         console.log("Downgrade programado con subscription schedule:", schedule.id);
-        await empresaRef.update({ plan: "BASICO" });
+
+        // Guardamos el subscriptionScheduleId en DB
+        await empresaRef.update({
+          plan: "BASICO",
+          subscriptionScheduleId: schedule.id,
+        });
+
         return NextResponse.json({
           message: "Downgrade programado. El plan Básico se activará al finalizar el periodo Premium",
         });
@@ -122,6 +135,10 @@ export async function POST(request: NextRequest) {
         metadata: { empresaId, plan },
       });
       console.log("[stripe-create] Sesión creada:", session.id);
+
+      // Aún no tenemos subscriptionId aquí, porque la suscripción se crea tras el pago.
+      // Suele manejarse en el webhook `checkout.session.completed` o `customer.subscription.created`.
+
       return NextResponse.json({ url: session.url });
     }
 
