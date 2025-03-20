@@ -64,45 +64,46 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Ya estás en el plan solicitado" });
       }
 
-      // Upgrade: de Básico a Premium (inmediato con prorrateo)
+      // Upgrade: de Básico a Premium
       if (plan === "PREMIUM") {
-        const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
-          cancel_at_period_end: false, // Revierte cancelación si la hubiera
-          proration_behavior: "always_invoice",
-          items: [
-            {
-              id: currentSubscription.items.data[0].id,
-              price: newPriceId,
-            },
-          ],
-        });
-        console.log("Suscripción actualizada (upgrade):", updatedSubscription.id);
-        await empresaRef.update({
-          subscriptionId: updatedSubscription.id,
-          plan: "PREMIUM",
-          downgradePending: false, // Limpiamos el flag por si existía
-        });
-        return NextResponse.json({
-          message: "Suscripción actualizada a Premium de forma inmediata",
-        });
+        // Creamos una sesión de Checkout en modo "subscription" con actualización
+        // Se usa "as any" para forzar los parámetros que no están reconocidos por los tipos
+        const session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          customer: stripeCustomerId,
+          subscription: currentSubscriptionId,
+          subscription_update: {
+            items: [
+              {
+                id: currentSubscription.items.data[0].id,
+                price: newPriceId,
+              },
+            ],
+            proration_behavior: "always_invoice",
+          },
+          success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
+          cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+          metadata: { empresaId, plan },
+        } as any);
+        console.log("[stripe-create] Checkout session for upgrade created:", session.id);
+        return NextResponse.json({ url: session.url });
       }
 
       // Downgrade: de Premium a Básico
       if (plan === "BASICO") {
-        // Marcamos la suscripción actual para cancelarse al final del ciclo
+        // Marcamos la suscripción actual para que se cancele al final del ciclo
         await stripe.subscriptions.update(currentSubscriptionId, {
           cancel_at_period_end: true,
         });
         console.log("Suscripción marcada para cancelación al final del ciclo Premium");
 
-        // Actualizamos Firestore indicando que se ha programado un downgrade
+        // Actualizamos Firestore indicando downgrade programado
         await empresaRef.update({
           plan: "BASICO",
           downgradePending: true,
         });
 
-        // Creamos una sesión de checkout para la nueva suscripción
-        // que se activará cuando termine el periodo Premium
+        // Creamos una sesión de Checkout para la nueva suscripción que se activará luego
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
           success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
           ],
           metadata: { empresaId, plan },
         });
-        console.log("[stripe-create] Sesión creada:", session.id);
+        console.log("[stripe-create] Sesión creada (downgrade):", session.id);
         return NextResponse.json({
           url: session.url,
           message:
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
         });
       }
     } else {
-      // Sin suscripción previa, creamos la sesión de checkout para una nueva suscripción
+      // Sin suscripción previa, creamos la sesión de Checkout para una nueva suscripción
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
