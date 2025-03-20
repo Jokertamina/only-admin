@@ -8,6 +8,7 @@ interface EmpresaData {
   plan?: string;
   email?: string;
   contactPhone?: string;
+  downgradePending?: boolean;
   // Agrega aquí otros campos que necesites...
 }
 

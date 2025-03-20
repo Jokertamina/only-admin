@@ -75,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     switch (event.type) {
+      // 1) Evento de Checkout completado: actualiza plan y subscriptionId
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
@@ -83,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const plan = session.metadata?.plan;
         const empresaId = session.metadata?.empresaId;
 
-        console.log("[stripe-webhook] Datos recibidos en webhook:");
+        console.log("[stripe-webhook] Datos recibidos en webhook (checkout.session.completed):");
         console.log(`🔹 Subscription ID: ${subscriptionId}`);
         console.log(`🔹 Plan: ${plan}`);
         console.log(`🔹 Empresa ID: ${empresaId}`);
@@ -117,6 +118,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           `[stripe-webhook] ✅ Firestore actualizado: Plan (${plan}) y Subscription ID (${subscriptionId}) para empresa: ${empresaId}`
         );
 
+        break;
+      }
+
+      // 2) Evento de cancelación de suscripción (o actualización con status=canceled)
+      case "customer.subscription.deleted":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log(`[stripe-webhook] Evento: ${event.type}, suscripción: ${subscription.id}, status: ${subscription.status}`);
+
+        // Si la suscripción está realmente cancelada (no "active" ni "trialing")
+        if (subscription.status === "canceled") {
+          console.log(`[stripe-webhook] Suscripción ${subscription.id} está cancelada.`);
+          // Buscamos en Firestore la empresa con subscriptionId = subscription.id
+          const snap = await admin
+            .firestore()
+            .collection("Empresas")
+            .where("subscriptionId", "==", subscription.id)
+            .get();
+
+          if (!snap.empty) {
+            snap.forEach(async (doc) => {
+              const data = doc.data();
+              console.log(`[stripe-webhook] Empresa encontrada: ${doc.id}, data:`, data);
+
+              // Si tenía un downgrade pendiente, es el momento de pasarlo a BASICO
+              if (data.downgradePending === true) {
+                console.log(`[stripe-webhook] Aplicando downgrade en la empresa ${doc.id}`);
+                await doc.ref.update({
+                  plan: "BASICO",
+                  downgradePending: false,
+                  subscriptionId: "", // Opcional: deja en blanco si no creas nueva suscripción
+                });
+                console.log(`[stripe-webhook] Downgrade completado para la empresa ${doc.id}`);
+              } else {
+                // Si no tenía downgradePending, significa que se canceló la suscripción por otro motivo
+                // Podrías poner plan: "SIN_PLAN" o dejarlo en Premium (depende de tu lógica)
+                console.log(`[stripe-webhook] La suscripción se canceló, pero no hay downgradePending en la empresa ${doc.id}`);
+              }
+            });
+          } else {
+            console.log(`[stripe-webhook] No se encontró empresa con subscriptionId = ${subscription.id}`);
+          }
+        }
         break;
       }
 

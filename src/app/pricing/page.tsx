@@ -148,10 +148,20 @@ const PricingPage: React.FC = () => {
             "3 Registros de obras",
             "Soporte básico",
           ]}
-          buttonText={currentPlan === "BASICO" ? "Plan actual" : "Elegir plan"}
+          buttonText={
+            empresaData?.downgradePending && empresaData.plan === "PREMIUM"
+              ? "Downgrade pendiente"
+              : currentPlan === "BASICO"
+                ? "Plan actual"
+                : "Elegir plan"
+          }
           onBuy={() => handleBuyPlan("BASICO")}
-          disabled={currentPlan === "BASICO"}
+          disabled={
+            currentPlan === "BASICO" ||
+            (empresaData?.downgradePending && empresaData.plan === "PREMIUM")
+          }
         />
+
 
         {/* Card Premium */}
         <PricingCard
@@ -169,7 +179,7 @@ const PricingPage: React.FC = () => {
         />
 
         {/* Tarjeta de plan personalizado (actualmente oculta, se deja comentada) */}
-        
+
         {/* <PricingCard
           plan="Personalizado"
           price="Pago inicial según contratación + 55€/mes"
