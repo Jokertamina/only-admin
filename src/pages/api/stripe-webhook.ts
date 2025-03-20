@@ -1,4 +1,4 @@
-// src/pages/api/stripe-webhook.ts
+// src/pages/api/stripe-webhook.ts (o /app/api/stripe-webhook/route.ts)
 
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import Stripe from "stripe";
@@ -6,7 +6,7 @@ import * as admin from "firebase-admin";
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false, // Para poder leer el raw body
   },
 };
 
@@ -14,7 +14,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2022-11-15",
 });
 
-// Inicializa Firebase Admin si aún no está inicializado
+// Inicializa Firebase Admin si no está inicializado
 if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -30,7 +30,7 @@ if (!admin.apps.length) {
   }
 }
 
-// Función para leer el raw body usando un bucle asíncrono
+// Para leer el body crudo
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -42,13 +42,9 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("[stripe-webhook] Método recibido:", req.method);
 
-  // Manejo de preflight OPTIONS
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, stripe-signature"
-    );
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
     return res.status(200).send("OK");
   }
 
@@ -67,112 +63,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET || ""
     );
-  } catch (err: unknown) {
-    console.error("[stripe-webhook] Error verificando firma de Stripe:", err);
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return res.status(400).send(`Webhook Error: ${errorMessage}`);
+  } catch (err) {
+    console.error("[stripe-webhook] Error verificando firma:", err);
+    return res.status(400).send(`Webhook Error: ${err}`);
   }
 
   try {
     switch (event.type) {
-      // 1) Evento de Checkout completado: actualiza plan y subscriptionId
+      // Cuando finaliza el Checkout y se crea una nueva suscripción
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-
-        // Extraer subscriptionId, plan y empresaId
         const subscriptionId = session.subscription as string | undefined;
         const plan = session.metadata?.plan;
         const empresaId = session.metadata?.empresaId;
 
-        console.log("[stripe-webhook] Datos recibidos en webhook (checkout.session.completed):");
-        console.log(`🔹 Subscription ID: ${subscriptionId}`);
-        console.log(`🔹 Plan: ${plan}`);
-        console.log(`🔹 Empresa ID: ${empresaId}`);
-
         if (!subscriptionId || !plan || !empresaId) {
-          console.error("[stripe-webhook] ❌ Error: Faltan datos en la sesión.");
+          console.error("[stripe-webhook] Faltan datos en checkout.session.completed");
           return res.status(400).send("Faltan datos en la sesión.");
         }
 
-        // Referencia al documento de la empresa
+        // Actualizamos la DB con plan y subscriptionId
         const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
-
-        // Revisamos si el documento existe antes de actualizar
-        const empresaDoc = await empresaRef.get();
-        if (!empresaDoc.exists) {
-          console.error(`[stripe-webhook] ❌ Error: Empresa ${empresaId} no encontrada.`);
-          return res.status(404).send(`Empresa ${empresaId} no encontrada.`);
-        }
-
-        console.log(`[stripe-webhook] 🔹 Actualizando Firestore para empresa: ${empresaId}`);
-
-        // Guardamos en Firestore usando una **transacción** para evitar problemas de concurrencia
-        await admin.firestore().runTransaction(async (transaction) => {
-          transaction.update(empresaRef, {
-            plan,
-            subscriptionId,
-          });
-        });
-
-        console.log(
-          `[stripe-webhook] ✅ Firestore actualizado: Plan (${plan}) y Subscription ID (${subscriptionId}) para empresa: ${empresaId}`
-        );
-
+        await empresaRef.update({ plan, subscriptionId });
+        console.log(`[stripe-webhook] Nueva suscripción: plan=${plan}, subId=${subscriptionId}, empresa=${empresaId}`);
         break;
       }
 
-      // 2) Evento de cancelación de suscripción (o actualización con status=canceled)
-      case "customer.subscription.deleted":
+      // Cuando cambia una suscripción, p. ej. al llegar la fecha del Subscription Schedule
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log(`[stripe-webhook] Evento: ${event.type}, suscripción: ${subscription.id}, status: ${subscription.status}`);
+        console.log("[stripe-webhook] subscription.updated:", subscription.id, subscription.items.data[0]?.price?.id);
 
-        // Si la suscripción está realmente cancelada (no "active" ni "trialing")
-        if (subscription.status === "canceled") {
-          console.log(`[stripe-webhook] Suscripción ${subscription.id} está cancelada.`);
-          // Buscamos en Firestore la empresa con subscriptionId = subscription.id
-          const snap = await admin
-            .firestore()
-            .collection("Empresas")
-            .where("subscriptionId", "==", subscription.id)
-            .get();
+        // Buscamos la empresa con subscriptionId = subscription.id
+        const snap = await admin
+          .firestore()
+          .collection("Empresas")
+          .where("subscriptionId", "==", subscription.id)
+          .get();
 
-          if (!snap.empty) {
-            snap.forEach(async (doc) => {
-              const data = doc.data();
-              console.log(`[stripe-webhook] Empresa encontrada: ${doc.id}, data:`, data);
+        if (!snap.empty) {
+          snap.forEach(async (doc) => {
+            const empresaData = doc.data();
 
-              // Si tenía un downgrade pendiente, es el momento de pasarlo a BASICO
-              if (data.downgradePending === true) {
-                console.log(`[stripe-webhook] Aplicando downgrade en la empresa ${doc.id}`);
+            // Si tenía un downgradePending y Stripe ya cambió el plan
+            // a Basic Price ID, entonces actualizamos plan en la DB.
+            if (empresaData.downgradePending === true) {
+              // Comprobamos si en la suscripción actual ya está el precio de BASICO
+              const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+              const newPriceId = subscription.items.data[0]?.price?.id;
+
+              if (newPriceId === basicPriceId) {
+                console.log("[stripe-webhook] Se completó el downgrade para la empresa:", doc.id);
                 await doc.ref.update({
                   plan: "BASICO",
                   downgradePending: false,
-                  subscriptionId: "", // Opcional: deja en blanco si no creas nueva suscripción
                 });
-                console.log(`[stripe-webhook] Downgrade completado para la empresa ${doc.id}`);
-              } else {
-                // Si no tenía downgradePending, significa que se canceló la suscripción por otro motivo
-                // Podrías poner plan: "SIN_PLAN" o dejarlo en Premium (depende de tu lógica)
-                console.log(`[stripe-webhook] La suscripción se canceló, pero no hay downgradePending en la empresa ${doc.id}`);
               }
-            });
-          } else {
-            console.log(`[stripe-webhook] No se encontró empresa con subscriptionId = ${subscription.id}`);
-          }
+            }
+          });
         }
         break;
       }
 
       default:
-        console.log(`[stripe-webhook] ⚠️ Evento no manejado: ${event.type}`);
+        console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
         break;
     }
-  } catch (error: unknown) {
-    console.error("[stripe-webhook] ❌ Error procesando el evento:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return res.status(400).send(`Event processing error: ${errorMessage}`);
-  }
 
-  return res.status(200).send("OK");
+    return res.status(200).send("OK");
+  } catch (error) {
+    console.error("[stripe-webhook] Error procesando evento:", error);
+    return res.status(400).send(`Event processing error: ${error}`);
+  }
 }
