@@ -58,15 +58,15 @@ export async function POST(req: NextRequest) {
     if (!currentSubscriptionId) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app//payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app//payment-cancel",
+        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
         customer: stripeCustomerId,
         line_items: [{ price: newPriceId, quantity: 1 }],
-        metadata: { empresaId, plan },
+        metadata: { empresaId, plan }, // El webhook leerá "plan" y también puede definir "estado_plan"
       });
       console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
 
-      // No seteamos el plan aquí; lo hará el webhook (checkout.session.completed)
+      // No seteamos 'plan' ni 'estado_plan' aquí; el webhook (checkout.session.completed) lo hará
       return NextResponse.json({
         url: session.url,
         message: "Sesión de pago creada. Completa el pago para activar tu plan.",
@@ -96,9 +96,10 @@ export async function POST(req: NextRequest) {
       });
       console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
 
-      // Actualizamos en DB: plan = "PREMIUM", downgradePending = false
+      // Actualizamos en DB: plan = "PREMIUM" y estado_plan = "PREMIUM", downgradePending = false
       await empresaRef.update({
         plan: "PREMIUM",
+        estado_plan: "PREMIUM",
         subscriptionId: updatedSubscription.id,
         downgradePending: false,
       });
@@ -123,8 +124,10 @@ export async function POST(req: NextRequest) {
       });
       console.log("[stripe-create] Downgrade programado (schedule):", schedule.id);
 
-      // Mantenemos plan = "PREMIUM" y marcamos downgradePending = true
+      // Mantenemos plan y estado_plan en "PREMIUM" y marcamos downgradePending = true
       await empresaRef.update({
+        plan: "PREMIUM",
+        estado_plan: "PREMIUM",
         downgradePending: true,
       });
 
