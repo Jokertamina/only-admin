@@ -1,7 +1,5 @@
-// /pages/api/stripe-create.ts (si usas Pages Router)
-// o /app/api/stripe-create/route.ts (si usas App Router)
-
-import { NextApiRequest, NextApiResponse } from "next";
+// src/app/api/stripe-create/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig"; // Ajusta la ruta según tu proyecto
 
@@ -9,24 +7,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2022-11-15",
 });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+// Función principal que maneja la petición POST
+export async function POST(req: NextRequest) {
   console.log("[stripe-create] Método recibido:", req.method);
 
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json("Method Not Allowed");
+    return NextResponse.json("Method Not Allowed", { status: 405 });
   }
 
   let body: { plan?: string; empresaId?: string };
   try {
-    body = req.body;
+    body = await req.json();
   } catch {
-    return res.status(400).json("Invalid JSON");
+    return NextResponse.json("Invalid JSON", { status: 400 });
   }
 
   const { plan, empresaId } = body;
   if (!plan || !empresaId) {
-    return res.status(400).json("Missing required fields");
+    return NextResponse.json("Missing required fields", { status: 400 });
   }
 
   try {
@@ -34,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const empresaRef = adminDb.collection("Empresas").doc(empresaId);
     const empresaSnap = await empresaRef.get();
     if (!empresaSnap.exists) {
-      return res.status(404).json("Empresa no encontrada");
+      return NextResponse.json("Empresa no encontrada", { status: 404 });
     }
 
     const data = empresaSnap.data() || {};
@@ -60,18 +58,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!currentSubscriptionId) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        success_url: "https://https://adminpanel-rust-seven.vercel.app//payment-success",
-        cancel_url: "https://https://adminpanel-rust-seven.vercel.app//payment-cancel",
+        success_url: "https://tudominio.com/payment-success",
+        cancel_url: "https://tudominio.com/payment-cancel",
         customer: stripeCustomerId,
-        line_items: [
-          { price: newPriceId, quantity: 1 },
-        ],
+        line_items: [{ price: newPriceId, quantity: 1 }],
         metadata: { empresaId, plan },
       });
       console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
 
-      // No seteamos el plan aquí; lo hará el webhook checkout.session.completed
-      return res.status(200).json({
+      // No seteamos el plan aquí; lo hará el webhook (checkout.session.completed)
+      return NextResponse.json({
         url: session.url,
         message: "Sesión de pago creada. Completa el pago para activar tu plan.",
       });
@@ -83,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Si ya está en el mismo plan, no hacemos nada
     if (currentPriceId === newPriceId) {
-      return res.status(200).json({ message: "Ya estás en el plan solicitado" });
+      return NextResponse.json({ message: "Ya estás en el plan solicitado" });
     }
 
     // --- UPGRADE (Básico → Premium) ---
@@ -107,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         downgradePending: false,
       });
 
-      return res.status(200).json({
+      return NextResponse.json({
         message: "Plan actualizado a Premium de forma inmediata",
       });
     }
@@ -115,7 +111,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // --- DOWNGRADE (Premium → Básico) ---
     if (plan === "BASICO") {
       // Creamos un schedule para cambiar el precio al final del ciclo
-      // Sin start_date, Stripe lo calcula automáticamente al final del ciclo
       const schedule = await stripe.subscriptionSchedules.create({
         from_subscription: currentSubscriptionId,
         end_behavior: "release",
@@ -133,14 +128,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         downgradePending: true,
       });
 
-      return res.status(200).json({
+      return NextResponse.json({
         message: "Downgrade programado. Mantendrás Premium hasta el final del ciclo.",
       });
     }
 
-    return res.status(200).json({ message: "Operación completada" });
+    return NextResponse.json({ message: "Operación completada" });
   } catch (error) {
     console.error("[stripe-create] Error:", error);
-    return res.status(500).json("Internal Server Error");
+    return NextResponse.json("Internal Server Error", { status: 500 });
   }
 }
