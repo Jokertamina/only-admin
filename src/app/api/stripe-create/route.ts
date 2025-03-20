@@ -40,11 +40,10 @@ export async function POST(request: NextRequest) {
     let stripeCustomerId = empresaSnap.data()?.stripeCustomerId;
     const currentSubscriptionId = empresaSnap.data()?.subscriptionId;
 
-    // 3) Determinamos el priceId según el plan
-    const newPriceId =
-      plan === "PREMIUM"
-        ? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!
-        : process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+    // 3) Determinamos el priceId según el plan solicitado
+    const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
+    const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+    const newPriceId = plan === "PREMIUM" ? premiumPriceId : basicPriceId;
 
     // 4) Creamos el cliente en Stripe si no existe
     if (!stripeCustomerId) {
@@ -61,15 +60,14 @@ export async function POST(request: NextRequest) {
       const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
       const currentPriceId = currentSubscription.items.data[0]?.price?.id;
 
-      // Si ya está en el plan solicitado, no hacemos nada
+      // Si ya está en el mismo plan, no hacemos nada
       if (currentPriceId === newPriceId) {
         return NextResponse.json({ message: "Ya estás en el plan solicitado" });
       }
 
       // --- UPGRADE (Básico → Premium) ---
       if (plan === "PREMIUM") {
-        // Con la API estable, la forma recomendada es actualizar la suscripción directamente
-        // aplicando prorrateo (always_invoice) para cobrar la diferencia.
+        // Actualizamos la suscripción de inmediato (se usa el método de pago guardado)
         const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
           proration_behavior: "always_invoice",
           items: [
@@ -80,63 +78,40 @@ export async function POST(request: NextRequest) {
           ],
         });
         console.log("[stripe-create] Suscripción actualizada (upgrade):", updatedSubscription.id);
-
         // Actualizamos Firestore con el nuevo plan
         await empresaRef.update({
           plan: "PREMIUM",
           subscriptionId: updatedSubscription.id,
-          downgradePending: false, // Por si antes había un downgrade pendiente
+          downgradePending: false, // Limpiamos flag si existía
         });
-
         return NextResponse.json({
-          message: "Suscripción actualizada a Premium de forma inmediata (API estable)",
+          message: "Suscripción actualizada a Premium de forma inmediata",
         });
       }
 
       // --- DOWNGRADE (Premium → Básico) ---
       if (plan === "BASICO") {
-        // 1) Marcamos la suscripción para cancelarse al final del ciclo actual
+        // Marcamos la suscripción para que se cancele al final del ciclo actual
         await stripe.subscriptions.update(currentSubscriptionId, {
           cancel_at_period_end: true,
         });
-        console.log("Suscripción marcada para cancelación al final del ciclo Premium");
-
-        // 2) Actualizamos Firestore indicando que se ha programado un downgrade
+        console.log("Suscripción marcada para cancelación al final del ciclo Premium:", currentSubscriptionId);
+        // Actualizamos Firestore: NO actualizamos el campo "plan", se mantiene "PREMIUM",
+        // y solo se marca que hay un downgrade pendiente.
         await empresaRef.update({
-          plan: "BASICO",
           downgradePending: true,
         });
-
-        // 3) Creamos una Checkout Session para la nueva suscripción (Básico)
-        //    que se activará tras finalizar la Premium actual.
-        const session = await stripe.checkout.sessions.create({
-          mode: "subscription",
-          success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-          cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
-          customer: stripeCustomerId,
-          line_items: [
-            {
-              price: newPriceId,
-              quantity: 1,
-            },
-          ],
-          metadata: { empresaId, plan },
-        });
-        console.log("[stripe-create] Sesión creada (downgrade):", session.id);
-
         return NextResponse.json({
-          url: session.url,
-          message:
-            "Downgrade programado. Mantendrás Premium hasta el final del ciclo y luego se activará el plan Básico.",
+          message: "Downgrade programado. Mantendrás Premium hasta el final del ciclo; luego se activará el plan Básico.",
         });
       }
     }
 
-    // 6) Si NO hay suscripción previa, creamos una nueva suscripción con Checkout
+    // 6) Si NO hay suscripción previa, creamos una nueva sesión de Checkout para una nueva suscripción
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      success_url: `https://adminpanel-rust-seven.vercel.app/payment-success`,
-      cancel_url: `https://adminpanel-rust-seven.vercel.app/payment-cancel`,
+      success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+      cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
       customer: stripeCustomerId,
       line_items: [
         {
@@ -147,9 +122,13 @@ export async function POST(request: NextRequest) {
       metadata: { empresaId, plan },
     });
     console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
-
-    return NextResponse.json({ url: session.url });
-  } catch (error) {
+    // Actualizamos Firestore con el plan solicitado (en este caso, el nuevo plan)
+    await empresaRef.update({ plan });
+    return NextResponse.json({
+      url: session.url,
+      message: "Sesión creada con éxito. Completa el pago para activar tu plan.",
+    });
+  } catch (error: unknown) {
     console.error("[stripe-create] Stripe error:", error);
     return NextResponse.json("Internal Server Error", { status: 500 });
   }
