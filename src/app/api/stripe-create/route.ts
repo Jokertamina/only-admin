@@ -1,5 +1,7 @@
-// EJEMPLO: /app/api/change-plan/route.ts
-import { NextRequest, NextResponse } from "next/server";
+// /pages/api/stripe-create.ts (si usas Pages Router)
+// o /app/api/stripe-create/route.ts (si usas App Router)
+
+import { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig"; // Ajusta la ruta según tu proyecto
 
@@ -7,47 +9,44 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2022-11-15",
 });
 
-export async function POST(request: NextRequest) {
-  console.log("[change-plan] Método recibido:", request.method);
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log("[stripe-create] Método recibido:", req.method);
 
-  if (request.method !== "POST") {
-    return NextResponse.json("Method Not Allowed", {
-      status: 405,
-      headers: { Allow: "POST" },
-    });
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json("Method Not Allowed");
   }
 
-  let body;
+  let body: { plan?: string; empresaId?: string };
   try {
-    body = await request.json();
+    body = req.body;
   } catch {
-    return NextResponse.json("Invalid JSON", { status: 400 });
+    return res.status(400).json("Invalid JSON");
   }
 
-  const { plan, empresaId } = body as { plan?: string; empresaId?: string };
+  const { plan, empresaId } = body;
   if (!plan || !empresaId) {
-    return NextResponse.json("Missing required fields", { status: 400 });
+    return res.status(400).json("Missing required fields");
   }
 
   try {
-    // 1) Verificamos si la empresa existe
+    // 1) Verificamos si la empresa existe en DB
     const empresaRef = adminDb.collection("Empresas").doc(empresaId);
     const empresaSnap = await empresaRef.get();
     if (!empresaSnap.exists) {
-      return NextResponse.json("Empresa no encontrada", { status: 404 });
+      return res.status(404).json("Empresa no encontrada");
     }
 
-    // Datos actuales de la empresa
     const data = empresaSnap.data() || {};
     let stripeCustomerId = data.stripeCustomerId;
     const currentSubscriptionId = data.subscriptionId;
 
-    // Determinamos los priceId (ajusta a tus variables de entorno)
+    // 2) Determinamos los Price IDs
     const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
     const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
     const newPriceId = plan === "PREMIUM" ? premiumPriceId : basicPriceId;
 
-    // 2) Creamos cliente en Stripe si no existe
+    // 3) Creamos cliente Stripe si no existe
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: data.email || undefined,
@@ -57,42 +56,41 @@ export async function POST(request: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
-    // 3) Si no hay suscripción previa, creamos una nueva
+    // 4) Si no hay suscripción previa, creamos nueva sesión de Checkout
     if (!currentSubscriptionId) {
-      // Creas una Checkout Session o directamente subscriptions.create (depende de tu flujo).
-      // Aquí hacemos Checkout Session para que el usuario pague el plan.
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
+        success_url: "https://tudominio.com/payment-success",
+        cancel_url: "https://tudominio.com/payment-cancel",
         customer: stripeCustomerId,
         line_items: [
           { price: newPriceId, quantity: 1 },
         ],
         metadata: { empresaId, plan },
       });
-      console.log("[change-plan] Sesión creada (nueva suscripción):", session.id);
+      console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
 
-      return NextResponse.json({
+      // No seteamos el plan aquí; lo hará el webhook checkout.session.completed
+      return res.status(200).json({
         url: session.url,
-        message: "Sesión de pago creada. Completa el proceso para activar el plan.",
+        message: "Sesión de pago creada. Completa el pago para activar tu plan.",
       });
     }
 
-    // 4) Hay suscripción activa, así que la obtenemos
+    // 5) Hay suscripción activa: la obtenemos
     const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
     const currentPriceId = currentSubscription.items.data[0]?.price?.id;
 
-    // Si ya está en el plan solicitado, no hacemos nada
+    // Si ya está en el mismo plan, no hacemos nada
     if (currentPriceId === newPriceId) {
-      return NextResponse.json({ message: "Ya estás en el plan solicitado" });
+      return res.status(200).json({ message: "Ya estás en el plan solicitado" });
     }
 
     // --- UPGRADE (Básico → Premium) ---
     if (plan === "PREMIUM") {
-      // Actualizamos la suscripción de inmediato
-      const updated = await stripe.subscriptions.update(currentSubscriptionId, {
-        proration_behavior: "none", // o "always_invoice" si quieres cobrar la diferencia
+      // Actualizamos la suscripción de inmediato con prorrateo
+      const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+        proration_behavior: "always_invoice",
         items: [
           {
             id: currentSubscription.items.data[0].id,
@@ -100,54 +98,49 @@ export async function POST(request: NextRequest) {
           },
         ],
       });
-      console.log("[change-plan] Upgrade inmediato:", updated.id);
+      console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
 
-      // Actualizamos DB: plan = "PREMIUM", se asume que la transición es instantánea
+      // Actualizamos en DB: plan = "PREMIUM", downgradePending = false
       await empresaRef.update({
         plan: "PREMIUM",
-        subscriptionId: updated.id,
-        downgradePending: false, // por si existía antes
+        subscriptionId: updatedSubscription.id,
+        downgradePending: false,
       });
 
-      return NextResponse.json({
+      return res.status(200).json({
         message: "Plan actualizado a Premium de forma inmediata",
       });
     }
 
     // --- DOWNGRADE (Premium → Básico) ---
     if (plan === "BASICO") {
-      // Creamos una Subscription Schedule para programar el cambio a Básico al final del ciclo
+      // Creamos un schedule para cambiar el precio al final del ciclo
+      // Sin start_date, Stripe lo calcula automáticamente al final del ciclo
       const schedule = await stripe.subscriptionSchedules.create({
         from_subscription: currentSubscriptionId,
         end_behavior: "release",
-        // Inicia el cambio al final del ciclo actual
-        start_date: currentSubscription.current_period_end,
         phases: [
           {
-            items: [
-              { price: newPriceId, quantity: 1 },
-            ],
-            // proration_behavior no aplica en la misma forma, pero se puede setear
+            items: [{ price: newPriceId, quantity: 1 }],
             proration_behavior: "none",
           },
         ],
       });
-      console.log("[change-plan] Downgrade programado con schedule:", schedule.id);
+      console.log("[stripe-create] Downgrade programado (schedule):", schedule.id);
 
-      // No cambiamos plan a "BASICO" todavía; mantenemos "PREMIUM"
-      // Marcamos downgradePending: true para que el webhook sepa que es un downgrade programado
+      // Mantenemos plan = "PREMIUM" y marcamos downgradePending = true
       await empresaRef.update({
         downgradePending: true,
       });
 
-      return NextResponse.json({
+      return res.status(200).json({
         message: "Downgrade programado. Mantendrás Premium hasta el final del ciclo.",
       });
     }
 
-    return NextResponse.json({ message: "Operación completada" });
+    return res.status(200).json({ message: "Operación completada" });
   } catch (error) {
-    console.error("[change-plan] Error:", error);
-    return NextResponse.json("Internal Server Error", { status: 500 });
+    console.error("[stripe-create] Error:", error);
+    return res.status(500).json("Internal Server Error");
   }
 }
