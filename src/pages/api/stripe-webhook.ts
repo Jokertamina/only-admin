@@ -76,9 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const metadata = session.metadata || {};
         if (metadata.downgrade === "true" && metadata.currentSubscriptionId) {
           const currentSubscriptionId = metadata.currentSubscriptionId;
-          const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+          await stripe.subscriptions.update(currentSubscriptionId, {
             cancel_at_period_end: true,
           });
+          
           console.log(
             `[stripe-webhook] Downgrade confirmado: la suscripción premium ${currentSubscriptionId} se cancelará al final del ciclo.`
           );
