@@ -1,227 +1,188 @@
-// src/app/api/stripe-webhook/route.ts
-
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import * as admin from "firebase-admin";
-import { NextResponse } from "next/server";
+import { adminDb } from "../../../lib/firebaseAdminConfig";
+import admin from 'firebase-admin';
 
-export const config = {
-  api: { bodyParser: false }, // Para leer el body crudo (Stripe exige el payload sin parsear)
-};
-
-// Instancia de Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-02-24.acacia",
 });
 
-// Inicialización de Firebase Admin
-if (!admin.apps.length) {
-  try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!serviceAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT no está definido");
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(serviceAccount)),
-    });
-    console.log("[Firebase] Inicializado correctamente");
-  } catch (error) {
-    console.error("[Firebase] Error al inicializar:", error);
-  }
-}
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-const EMPRESAS_COLLECTION = "Empresas";
-
-// Función para obtener el raw body en Next.js (Request nativo)
-async function readRawBody(req: Request): Promise<Buffer> {
-  const body = await req.arrayBuffer();
-  return Buffer.from(body);
-}
-
-// Función auxiliar para actualizar la información de la empresa en Firestore
-async function actualizarEmpresa(empresaId: string, updateData: Record<string, unknown>) {
-  const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
-  await empresaRef.update(updateData);
-  console.log(`[stripe-webhook] Empresa ${empresaId} actualizada con:`, updateData);
-}
-
-/**
- * Handler para la ruta POST /api/stripe-webhook
- * Recibe los eventos de Stripe y actualiza la DB según el tipo de evento
- */
-export async function POST(req: Request) {
-  // Manejo de OPTIONS
-  if (req.method === "OPTIONS") {
-    const response = NextResponse.json("OK", { status: 200 });
-    response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    response.headers.set("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
-    return response;
-  }
-  if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
-  }
+export async function POST(req: NextRequest) {
+  const payload = await req.text();
+  const signature = req.headers.get("stripe-signature") as string;
 
   let event: Stripe.Event;
-  let rawBody: Buffer;
+
   try {
-    // 1) Leer el body crudo para poder verificar la firma
-    rawBody = await readRawBody(req);
+    event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
   } catch (err) {
-    console.error("[stripe-webhook] Error leyendo el body:", err);
-    return new Response(`Error reading request body: ${err}`, { status: 400 });
+    console.error(`⚠️  Webhook Error: ${err}`);
+    return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
   }
 
-  // 2) Verificar la firma
-  const signature = req.headers.get("stripe-signature") || "";
-  try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET!);
-  } catch (err) {
-    console.error("[stripe-webhook] Error verificando firma:", err);
-    return new Response(`Webhook Error: ${err}`, { status: 400 });
+  const session = event.data.object as any;
+  const metadata = session.metadata || {};
+  const empresaId = metadata.empresaId;
+
+  if (!empresaId) {
+    console.warn("Evento sin empresaId, ignorado");
+    return NextResponse.json({ message: "Evento sin empresaId" });
   }
 
-  // 3) Procesar el evento
-  try {
-    switch (event.type) {
-      //-----------------------------------------------------------
-      // Se completa el Checkout (pago). Si es un downgrade, marcamos
-      // la suscripción actual para que se cancele al final del ciclo.
-      //-----------------------------------------------------------
-      case "checkout.session.completed": {
-        console.log("[stripe-webhook] checkout.session.completed");
-        const session = event.data.object as Stripe.Checkout.Session;
-        const metadata = session.metadata || {};
+  const empresaRef = adminDb.collection("empresas").doc(empresaId);
 
-        if (metadata.downgrade === "true" && metadata.currentSubscriptionId) {
-          const currentSubscriptionId = metadata.currentSubscriptionId;
-          await stripe.subscriptions.update(currentSubscriptionId, {
-            cancel_at_period_end: true,
-          });
-          console.log(
-            `[stripe-webhook] Downgrade confirmado: la suscripción premium ${currentSubscriptionId} se cancelará al final del ciclo.`
-          );
-        }
-        break;
-      }
+  switch (event.type) {
+    case "checkout.session.completed":
+      if (metadata.downgrade === "true") {
+        await empresaRef.update({ pendingDowngrade: true });
+        console.log(`✅ Downgrade confirmado para empresa ${empresaId}`);
+      } else {
+        const subscriptionId = session.subscription;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-      //-----------------------------------------------------------
-      // Suscripción creada/actualizada. Actualizamos la DB
-      // con el plan actual.
-      // Si es downgrade, mantenemos PREMIUM hasta que termine la trial,
-      // y una vez finalizada, se actualiza a BASICO.
-      //-----------------------------------------------------------
-      case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        console.log(`[stripe-webhook] Subscription ${subscription.id} => ${event.type}`);
-
-        const empresaId = subscription.metadata?.empresaId;
-        if (!empresaId) {
-          console.log("[stripe-webhook] ❌ No hay metadata.empresaId en la suscripción.");
-          break;
-        }
-
-        // [MODIFICACIÓN] Obtenemos el doc de la empresa para verificar si hay otra sub diferente
-        const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
-        const empresaSnap = await empresaRef.get();
-        if (!empresaSnap.exists) {
-          console.log("[stripe-webhook] Empresa no encontrada en DB.");
-          break;
-        }
-        const empresaData = empresaSnap.data() || {};
-        const oldSubId = empresaData.subscriptionId || "";
-
-        // Si la DB ya apunta a otra suscripción distinta, no pisar la subscriptionId
-        // a menos que sea "" o coincida con la suscripción actual.
-        if (oldSubId && oldSubId !== subscription.id) {
-          console.log(
-            `[stripe-webhook] La DB apunta a otra sub (${oldSubId}), no sobrescribimos con ${subscription.id}`
-          );
-        }
-
-        const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-        const subPriceId = subscription.items.data[0]?.price?.id;
-        let newPlan: string;
-
-        if (subscription.metadata?.downgrade === "true") {
-          // Si la trial ha terminado, cambiamos a BASICO, de lo contrario, se mantiene PREMIUM.
-          if (subscription.trial_end && subscription.trial_end * 1000 < Date.now()) {
-            newPlan = "BASICO";
-          } else {
-            newPlan = "PREMIUM";
-          }
-        } else {
-          newPlan = subPriceId === basicPriceId ? "BASICO" : "PREMIUM";
-        }
-
-        const updateData: Record<string, unknown> = {
-          // [MODIFICACIÓN] Solo actualizamos subscriptionId si no teníamos uno o si coincide con la actual
-          ...( !oldSubId || oldSubId === subscription.id ? { subscriptionId: subscription.id } : {} ),
-          status: subscription.status || "unknown",
-          plan: newPlan,
-          subscriptionCreated: subscription.created || null,
-          currentPeriodStart: subscription.current_period_start || null,
-          currentPeriodEnd: subscription.current_period_end || null,
-          cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
-          canceledAt: subscription.canceled_at || null,
+        await empresaRef.update({
+          subscriptionId,
+          plan: metadata.plan,
+          subscriptionStatus: subscription.status,
+          subscriptionCreated: subscription.created,
+          currentPeriodStart: subscription.current_period_start,
+          currentPeriodEnd: subscription.current_period_end,
           trialStart: subscription.trial_start || null,
           trialEnd: subscription.trial_end || null,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          canceledAt: subscription.canceled_at || null,
           endedAt: subscription.ended_at || null,
-          estado_plan: newPlan,
-        };
+          pendingDowngrade: false,
+          failedPaymentsCount: 0,
+        });
 
-        await actualizarEmpresa(empresaId, updateData);
+        console.log(`✅ Nueva suscripción ${metadata.plan} con detalles completos empresa ${empresaId}`);
+      }
+      break;
+
+    case "customer.subscription.updated":
+      const subscriptionUpdated = session as Stripe.Subscription;
+      const priceId = subscriptionUpdated.items.data[0].price.id;
+      let updatedPlan = "SIN PLAN";
+
+      if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) updatedPlan = "PREMIUM";
+      else if (priceId === process.env.STRIPE_BASIC_PRICE_ID) updatedPlan = "BASICO";
+
+      await empresaRef.update({
+        plan: updatedPlan,
+        subscriptionStatus: subscriptionUpdated.status,
+        currentPeriodStart: subscriptionUpdated.current_period_start,
+        currentPeriodEnd: subscriptionUpdated.current_period_end,
+        cancelAtPeriodEnd: subscriptionUpdated.cancel_at_period_end,
+        canceledAt: subscriptionUpdated.canceled_at || null,
+        endedAt: subscriptionUpdated.ended_at || null,
+        pendingDowngrade: false
+      });
+
+      console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos empresa ${empresaId}`);
+      break;
+
+    case "invoice.payment_succeeded":
+      const invoice = session as Stripe.Invoice;
+      if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
+        await empresaRef.update({
+          subscriptionStatus: "active",
+          failedPaymentsCount: 0
+        });
+        console.log(`💳 Pago exitoso (${invoice.billing_reason}) empresa ${empresaId}`);
+      }
+      break;
+
+    case "invoice.payment_failed":
+      await empresaRef.update({
+        subscriptionStatus: "past_due",
+        failedPaymentsCount: admin.firestore.FieldValue.increment(1)
+      });
+
+      const empresaSnap = await empresaRef.get();
+      const empresaData = empresaSnap.data();
+
+      if (empresaData && empresaData.failedPaymentsCount >= 3 && empresaData.subscriptionId) {
+        await stripe.subscriptions.update(empresaData.subscriptionId, { cancel_at_period_end: true });
+        console.error(`⚠️ Suscripción suspendida automáticamente por múltiples fallos empresa ${empresaId}`);
+      } else {
+        console.warn(`❌ Fallo en pago empresa ${empresaId}, intento ${empresaData?.failedPaymentsCount || 1}`);
+      }
+      break;
+
+    case "customer.subscription.deleted":
+      const customerId = session.customer;
+
+      if (!customerId) {
+        console.warn(`⚠️ customerId es nulo, evento ignorado para empresa ${empresaId}`);
         break;
       }
 
-      //-----------------------------------------------------------
-      // Suscripción eliminada. Validación cruzada:
-      // Se consulta Firestore para ver si existe una bandera downgradePending.
-      // Si existe, se actualiza el plan a BASICO en lugar de SIN_PLAN.
-      //-----------------------------------------------------------
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        console.log(`[stripe-webhook] Subscription ${subscription.id} => deleted`);
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all"
+      });
 
-        const empresaId = subscription.metadata?.empresaId;
-        if (empresaId) {
-          const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
-          const empresaSnap = await empresaRef.get();
-          const empresaData = empresaSnap.data() || {};
-          const oldSubId = empresaData.subscriptionId || "";
-          let newPlan = "SIN_PLAN";
+      const activeOrTrialSubscription = subscriptions.data.find((sub) =>
+        ["active", "trialing"].includes(sub.status)
+      );
 
-          // [MODIFICACIÓN] Solo borramos subscriptionId si coincide con la sub eliminada
-          if (empresaData.downgradePending) {
-            newPlan = "BASICO";
-          }
+      if (activeOrTrialSubscription) {
+        const newPlanPriceId = activeOrTrialSubscription.items.data[0].price.id;
+        let newPlan = "SIN PLAN";
 
-          if (oldSubId === subscription.id) {
-            // OK, estamos borrando la suscripción que la DB cree que es la activa
-            await actualizarEmpresa(empresaId, {
-              plan: newPlan,
-              status: "canceled",
-              subscriptionId: "",
-              estado_plan: newPlan,
-              downgradePending: false,
-            });
-            console.log(
-              `[stripe-webhook] Empresa ${empresaId} actualizada a plan ${newPlan} (se eliminó la subId ${subscription.id})`
-            );
-          } else {
-            // Si no coincide, dejamos la DB como está
-            console.log(
-              `[stripe-webhook] La subId ${subscription.id} no coincide con la DB (${oldSubId}), no modificamos la DB.`
-            );
-          }
-        }
-        break;
+        if (newPlanPriceId === process.env.STRIPE_BASIC_PRICE_ID) newPlan = "BASICO";
+        else if (newPlanPriceId === process.env.STRIPE_PREMIUM_PRICE_ID) newPlan = "PREMIUM";
+
+        await empresaRef.update({
+          subscriptionId: activeOrTrialSubscription.id,
+          plan: newPlan,
+          subscriptionStatus: activeOrTrialSubscription.status,
+          subscriptionCreated: activeOrTrialSubscription.created,
+          currentPeriodStart: activeOrTrialSubscription.current_period_start,
+          currentPeriodEnd: activeOrTrialSubscription.current_period_end,
+          trialStart: activeOrTrialSubscription.trial_start || null,
+          trialEnd: activeOrTrialSubscription.trial_end || null,
+          cancelAtPeriodEnd: activeOrTrialSubscription.cancel_at_period_end,
+          canceledAt: activeOrTrialSubscription.canceled_at || null,
+          endedAt: activeOrTrialSubscription.ended_at || null,
+          pendingDowngrade: false
+        });
+
+        console.warn(`🔄 Suscripción actualizada automáticamente a ${newPlan} tras cancelar anterior empresa ${empresaId}`);
+      } else {
+        await empresaRef.update({
+          subscriptionStatus: "canceled",
+          plan: "SIN PLAN",
+          subscriptionId: admin.firestore.FieldValue.delete(),
+          cancelAtPeriodEnd: false,
+          canceledAt: Math.floor(Date.now() / 1000),
+          endedAt: Math.floor(Date.now() / 1000),
+          pendingDowngrade: false,
+          currentPeriodStart: null,
+          currentPeriodEnd: null,
+          trialStart: null,
+          trialEnd: null
+        });
+
+        console.warn(`🚫 Suscripción cancelada, sin otras activas para empresa ${empresaId}`);
       }
+      break;
 
-      default:
-        console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
-        break;
-    }
-    return new Response("OK", { status: 200 });
-  } catch (error) {
-    console.error("[stripe-webhook] ❌ Error procesando el evento:", error);
-    return new Response(`Event processing error: ${error}`, { status: 400 });
+    case "charge.refunded":
+      await empresaRef.update({
+        subscriptionStatus: "refunded"
+      });
+
+      console.warn(`💸 Pago reembolsado manualmente, empresa ${empresaId}. Revisa manualmente.`);
+      break;
+
+    default:
+      console.warn(`⚠️ Evento no manejado: ${event.type}`);
+      break;
   }
+
+  return NextResponse.json({ received: true });
 }
