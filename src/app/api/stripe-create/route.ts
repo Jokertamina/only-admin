@@ -1,3 +1,5 @@
+// src/app/api/stripe-create/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig";
@@ -5,6 +7,12 @@ import { adminDb } from "../../../lib/firebaseAdminConfig";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
+
+// Constantes para URLs y Price IDs
+const SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || "https://adminpanel-rust-seven.vercel.app/payment-success";
+const CANCEL_URL = process.env.STRIPE_CANCEL_URL || "https://adminpanel-rust-seven.vercel.app/payment-cancel";
+const PREMIUM_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
+const BASICO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
 
 export async function POST(req: NextRequest) {
   console.log("[stripe-create] Método recibido:", req.method);
@@ -33,14 +41,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json("Empresa no encontrada", { status: 404 });
     }
 
-    // Data de la empresa
     const data = empresaSnap.data() || {};
     let stripeCustomerId = data.stripeCustomerId as string | undefined;
     const currentSubscriptionId = data.subscriptionId as string | undefined;
-
-    // Price IDs
-    const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
-    const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
 
     // Crear customer en Stripe si no existe
     if (!stripeCustomerId) {
@@ -52,24 +55,31 @@ export async function POST(req: NextRequest) {
       await empresaRef.update({ stripeCustomerId });
     }
 
+    // Función auxiliar para crear sesión de checkout
+    const createCheckoutSession = async (
+      priceId: string,
+      metadata: Record<string, string>,
+      trialEnd?: number
+    ) => {
+      return await stripe.checkout.sessions.create({
+        mode: "subscription",
+        success_url: SUCCESS_URL,
+        cancel_url: CANCEL_URL,
+        customer: stripeCustomerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        subscription_data: {
+          ...(trialEnd && { trial_end: trialEnd }),
+          metadata,
+        },
+      });
+    };
+
     // -----------------------------------
     // NO SUBSCRIPCIÓN PREVIA => CHECKOUT
     // -----------------------------------
     if (!currentSubscriptionId) {
-      // Escogemos el price ID según plan
-      const newPriceId = plan === "PREMIUM" ? premiumPriceId : basicPriceId;
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
-        customer: stripeCustomerId,
-        line_items: [{ price: newPriceId, quantity: 1 }],
-        subscription_data: {
-          // Guardamos metadata en la sub
-          metadata: { empresaId, plan },
-        },
-      });
-
+      const newPriceId = plan === "PREMIUM" ? PREMIUM_PRICE_ID : BASICO_PRICE_ID;
+      const session = await createCheckoutSession(newPriceId, { empresaId, plan });
       console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
       return NextResponse.json({
         url: session.url,
@@ -86,8 +96,8 @@ export async function POST(req: NextRequest) {
 
     // Chequeamos si ya está en el plan deseado
     if (
-      (plan === "PREMIUM" && currentPriceId === premiumPriceId) ||
-      (plan === "BASICO" && currentPriceId === basicPriceId)
+      (plan === "PREMIUM" && currentPriceId === PREMIUM_PRICE_ID) ||
+      (plan === "BASICO" && currentPriceId === BASICO_PRICE_ID)
     ) {
       return NextResponse.json({ message: "Ya estás en el plan solicitado" });
     }
@@ -101,17 +111,15 @@ export async function POST(req: NextRequest) {
         items: [
           {
             id: currentSub.items.data[0].id,
-            price: premiumPriceId,
+            price: PREMIUM_PRICE_ID,
             quantity,
           },
         ],
-        // Reinyectamos metadata
         metadata: { empresaId, plan: "PREMIUM" },
       });
 
       console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
 
-      // DB: plan= "PREMIUM"
       await empresaRef.update({
         plan: "PREMIUM",
         estado_plan: "PREMIUM",
@@ -127,7 +135,7 @@ export async function POST(req: NextRequest) {
     // DOWNGRADE => Cancela Premium al final, crea nuevo Checkout con trial
     // -----------------------------------
     if (plan === "BASICO") {
-      // 1) Marcamos la sub actual para que se cancele al final del ciclo
+      // 1) Marcar la sub actual para cancelar al final del ciclo
       await stripe.subscriptions.update(currentSubscriptionId, {
         cancel_at_period_end: true,
       });
@@ -135,26 +143,16 @@ export async function POST(req: NextRequest) {
         `[stripe-create] Suscripción Premium marcada para cancelación al final del ciclo: ${currentSubscriptionId}`
       );
 
-      // 2) Actualizamos la DB => seguimos en Premium hasta que finalice
+      // 2) Actualizar la DB => seguimos en Premium hasta que finalice
       await empresaRef.update({
         plan: "PREMIUM",
         estado_plan: "PREMIUM",
         downgradePending: true,
       });
 
-      // 3) Creamos un Checkout Session con trial_end = final del Premium actual
+      // 3) Crear una nueva sesión con trial_end
       const periodEnd = currentSub.current_period_end;
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
-        customer: stripeCustomerId,
-        line_items: [{ price: basicPriceId, quantity: 1 }],
-        subscription_data: {
-          trial_end: periodEnd,
-          metadata: { empresaId, plan: "BASICO" },
-        },
-      });
+      const session = await createCheckoutSession(BASICO_PRICE_ID, { empresaId, plan: "BASICO" }, periodEnd);
 
       console.log("[stripe-create] Downgrade: nueva sesión con trial:", session.id);
       return NextResponse.json({

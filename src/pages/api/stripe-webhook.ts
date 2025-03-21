@@ -11,6 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
 
+// Inicialización de Firebase Admin
 if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -24,6 +25,8 @@ if (!admin.apps.length) {
   }
 }
 
+const EMPRESAS_COLLECTION = "Empresas";
+
 // Función para obtener el raw body en Vercel
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -31,6 +34,13 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
     chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks);
+}
+
+// Función auxiliar para actualizar la información de la empresa en Firestore
+async function actualizarEmpresa(empresaId: string, updateData: Record<string, unknown>) {
+  const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
+  await empresaRef.update(updateData);
+  console.log(`[stripe-webhook] Empresa ${empresaId} actualizada con:`, updateData);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -41,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
     return res.status(200).send("OK");
   }
+  
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).send("Method Not Allowed");
@@ -67,17 +78,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => ${event.type}`);
 
-        // Intentamos leer empresaId de metadata
         const empresaId = subscription.metadata?.empresaId;
         if (!empresaId) {
           console.log("[stripe-webhook] ❌ No hay metadata.empresaId en la suscripción.");
           break;
         }
-        const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
+
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-        // premiumPriceId eliminado ya que no se usa
         const subPriceId = subscription.items.data[0]?.price?.id;
         const newPlan = subPriceId === basicPriceId ? "BASICO" : "PREMIUM";
+
         const updateData: Record<string, unknown> = {
           subscriptionId: subscription.id,
           status: subscription.status || "unknown",
@@ -92,23 +102,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           endedAt: subscription.ended_at || null,
           estado_plan: newPlan,
         };
-        await empresaRef.update(updateData);
-        console.log("[stripe-webhook] DB actualizada con sub info =>", updateData);
+
+        await actualizarEmpresa(empresaId, updateData);
         break;
       }
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => deleted`);
         const empresaId = subscription.metadata?.empresaId;
-        if (!empresaId) break;
-        const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
-        await empresaRef.update({
-          plan: "SIN_PLAN",
-          status: "canceled",
-          subscriptionId: "",
-          estado_plan: "SIN_PLAN",
-        });
-        console.log(`[stripe-webhook] Empresa ${empresaId} => sin suscripción`);
+        if (empresaId) {
+          await actualizarEmpresa(empresaId, {
+            plan: "SIN_PLAN",
+            status: "canceled",
+            subscriptionId: "",
+            estado_plan: "SIN_PLAN",
+          });
+          console.log(`[stripe-webhook] Empresa ${empresaId} => sin suscripción`);
+        }
         break;
       }
       default:
