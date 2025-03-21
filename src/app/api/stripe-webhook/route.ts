@@ -80,10 +80,10 @@ export async function POST(req: Request) {
   // 3) Procesar el evento
   try {
     switch (event.type) {
-      // -----------------------------------------------------------
+      //-----------------------------------------------------------
       // Se completa el Checkout (pago). Si es un downgrade, marcamos
       // la suscripción actual para que se cancele al final del ciclo.
-      // -----------------------------------------------------------
+      //-----------------------------------------------------------
       case "checkout.session.completed": {
         console.log("[stripe-webhook] checkout.session.completed");
         const session = event.data.object as Stripe.Checkout.Session;
@@ -101,12 +101,12 @@ export async function POST(req: Request) {
         break;
       }
 
-      // -----------------------------------------------------------
+      //-----------------------------------------------------------
       // Suscripción creada/actualizada. Actualizamos la DB
       // con el plan actual.
       // Si es downgrade, mantenemos PREMIUM hasta que termine la trial,
       // y una vez finalizada, se actualiza a BASICO.
-      // -----------------------------------------------------------
+      //-----------------------------------------------------------
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
@@ -116,6 +116,24 @@ export async function POST(req: Request) {
         if (!empresaId) {
           console.log("[stripe-webhook] ❌ No hay metadata.empresaId en la suscripción.");
           break;
+        }
+
+        // [MODIFICACIÓN] Obtenemos el doc de la empresa para verificar si hay otra sub diferente
+        const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
+        const empresaSnap = await empresaRef.get();
+        if (!empresaSnap.exists) {
+          console.log("[stripe-webhook] Empresa no encontrada en DB.");
+          break;
+        }
+        const empresaData = empresaSnap.data() || {};
+        const oldSubId = empresaData.subscriptionId || "";
+
+        // Si la DB ya apunta a otra suscripción distinta, no pisar la subscriptionId
+        // a menos que sea "" o coincida con la suscripción actual.
+        if (oldSubId && oldSubId !== subscription.id) {
+          console.log(
+            `[stripe-webhook] La DB apunta a otra sub (${oldSubId}), no sobrescribimos con ${subscription.id}`
+          );
         }
 
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
@@ -134,7 +152,8 @@ export async function POST(req: Request) {
         }
 
         const updateData: Record<string, unknown> = {
-          subscriptionId: subscription.id,
+          // [MODIFICACIÓN] Solo actualizamos subscriptionId si no teníamos uno o si coincide con la actual
+          ...( !oldSubId || oldSubId === subscription.id ? { subscriptionId: subscription.id } : {} ),
           status: subscription.status || "unknown",
           plan: newPlan,
           subscriptionCreated: subscription.created || null,
@@ -152,11 +171,11 @@ export async function POST(req: Request) {
         break;
       }
 
-      // -----------------------------------------------------------
+      //-----------------------------------------------------------
       // Suscripción eliminada. Validación cruzada:
       // Se consulta Firestore para ver si existe una bandera downgradePending.
       // Si existe, se actualiza el plan a BASICO en lugar de SIN_PLAN.
-      // -----------------------------------------------------------
+      //-----------------------------------------------------------
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => deleted`);
@@ -166,18 +185,32 @@ export async function POST(req: Request) {
           const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
           const empresaSnap = await empresaRef.get();
           const empresaData = empresaSnap.data() || {};
+          const oldSubId = empresaData.subscriptionId || "";
           let newPlan = "SIN_PLAN";
+
+          // [MODIFICACIÓN] Solo borramos subscriptionId si coincide con la sub eliminada
           if (empresaData.downgradePending) {
             newPlan = "BASICO";
           }
-          await actualizarEmpresa(empresaId, {
-            plan: newPlan,
-            status: "canceled",
-            subscriptionId: "",
-            estado_plan: newPlan,
-            downgradePending: false, // Limpiamos la bandera
-          });
-          console.log(`[stripe-webhook] Empresa ${empresaId} actualizada a ${newPlan}`);
+
+          if (oldSubId === subscription.id) {
+            // OK, estamos borrando la suscripción que la DB cree que es la activa
+            await actualizarEmpresa(empresaId, {
+              plan: newPlan,
+              status: "canceled",
+              subscriptionId: "",
+              estado_plan: newPlan,
+              downgradePending: false,
+            });
+            console.log(
+              `[stripe-webhook] Empresa ${empresaId} actualizada a plan ${newPlan} (se eliminó la subId ${subscription.id})`
+            );
+          } else {
+            // Si no coincide, dejamos la DB como está
+            console.log(
+              `[stripe-webhook] La subId ${subscription.id} no coincide con la DB (${oldSubId}), no modificamos la DB.`
+            );
+          }
         }
         break;
       }
