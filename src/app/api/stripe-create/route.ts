@@ -70,8 +70,9 @@ export async function POST(req: Request) {
         cancel_url: CANCEL_URL,
         customer: stripeCustomerId,
         line_items: [{ price: priceId, quantity: 1 }],
+        metadata, // Se agrega metadata a la sesión de checkout
         subscription_data: {
-          ...(trialEnd && { trial_end: trialEnd }), // Para que el nuevo plan empiece tras el ciclo Premium (downgrade)
+          ...(trialEnd && { trial_end: trialEnd }),
           metadata,
         },
       });
@@ -170,7 +171,7 @@ export async function POST(req: Request) {
       // Incluimos metadata para identificar el downgrade y el id de la suscripción actual.
       const session = await createCheckoutSession(
         BASICO_PRICE_ID,
-        { empresaId, plan: "BASICO", downgrade: "true", currentSubscriptionId },
+        { downgrade: "true", currentSubscriptionId: currentSubscriptionId!, empresaId, plan: "BASICO" },
         periodEnd
       );
 
