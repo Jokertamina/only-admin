@@ -3,7 +3,7 @@
 "use client"; // Indica que este componente usa hooks en Next.js 13
 
 import { useEffect, useState } from "react";
-import { auth, db } from "../../../lib/firebaseConfig";
+import app, { auth, db } from "../../../lib/firebaseConfig"; 
 import {
   collection,
   query,
@@ -15,6 +15,9 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import styles from "../../styles/EmpresasPage.module.css";
+
+// Importamos funciones de Firebase Functions (SDK de cliente)
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Definimos un tipo para el plan
 type PlanType = "SIN_PLAN" | "BASICO" | "PREMIUM";
@@ -47,7 +50,14 @@ interface CustomModalProps {
   onCancel?: () => void;
 }
 
-function CustomModal({ isOpen, title, message, type, onConfirm, onCancel }: CustomModalProps) {
+function CustomModal({
+  isOpen,
+  title,
+  message,
+  type,
+  onConfirm,
+  onCancel,
+}: CustomModalProps) {
   if (!isOpen) return null;
   return (
     <div className={styles["modal-overlay"]}>
@@ -146,10 +156,14 @@ export default function EmpresasPage() {
     async function fetchSubscriptionDetails() {
       if (empresa?.subscriptionId) {
         try {
-          const res = await fetch(`/api/subscription-details?subscriptionId=${empresa.subscriptionId}`);
+          const res = await fetch(
+            `/api/subscription-details?subscriptionId=${empresa.subscriptionId}`
+          );
           const data = await res.json();
           if (data.success && data.subscriptionData) {
-            setEmpresa((prev) => (prev ? { ...prev, subscriptionData: data.subscriptionData } : prev));
+            setEmpresa((prev) =>
+              prev ? { ...prev, subscriptionData: data.subscriptionData } : prev
+            );
           }
         } catch (err) {
           console.error("Error al obtener datos de la suscripción:", err);
@@ -196,7 +210,10 @@ export default function EmpresasPage() {
   // ==========================
   //  Registro de Empresa
   // ==========================
-  const handleNewEmpresaChange = (field: keyof typeof newEmpresaData, value: string) => {
+  const handleNewEmpresaChange = (
+    field: keyof typeof newEmpresaData,
+    value: string
+  ) => {
     setNewEmpresaData((prev) => ({
       ...prev,
       [field]: value,
@@ -293,6 +310,55 @@ export default function EmpresasPage() {
   };
 
   // ==========================
+  //  ELIMINAR CUENTA Y DATOS
+  // ==========================
+  const handleDeleteAccount = () => {
+    setModalData({
+      isOpen: true,
+      type: "confirm",
+      title: "Eliminar cuenta",
+      message:
+        "Esta acción borrará tu cuenta, tu empresa y todos los datos relacionados (empleados, obras, fichajes). ¿Estás seguro?",
+      onConfirm: async () => {
+        setModalData(null);
+        try {
+          // Inicializamos funciones y llamamos a la callable function
+          const functions = getFunctions(app);
+          const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
+          const result = await deleteUserAccount({});
+          console.log("deleteUserAccount result:", result);
+
+          setModalData({
+            isOpen: true,
+            type: "alert",
+            title: "Cuenta eliminada",
+            message:
+              "Se ha eliminado tu cuenta y todos los datos asociados. Se cerrará tu sesión automáticamente.",
+            onConfirm: () => {
+              setModalData(null);
+              // Normalmente, aquí forzaríamos un signOut() y redirección
+              auth.signOut().then(() => {
+                window.location.href = "/login"; 
+              });
+            },
+          });
+        } catch (error: any) {
+          console.error("Error al eliminar la cuenta:", error);
+          setModalData({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message:
+              "Ocurrió un error al eliminar la cuenta. Revisa la consola o inténtalo más tarde.",
+            onConfirm: () => setModalData(null),
+          });
+        }
+      },
+      onCancel: () => setModalData(null),
+    });
+  };
+
+  // ==========================
   //  Loading y Sin Empresa
   // ==========================
   if (loading) {
@@ -327,7 +393,9 @@ export default function EmpresasPage() {
                 type="text"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.nombre}
-                onChange={(e) => handleNewEmpresaChange("nombre", e.target.value)}
+                onChange={(e) =>
+                  handleNewEmpresaChange("nombre", e.target.value)
+                }
               />
             </div>
             <div className={styles["empresas-input-group"]}>
@@ -339,7 +407,9 @@ export default function EmpresasPage() {
                 type="text"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.domicilio}
-                onChange={(e) => handleNewEmpresaChange("domicilio", e.target.value)}
+                onChange={(e) =>
+                  handleNewEmpresaChange("domicilio", e.target.value)
+                }
               />
             </div>
             <div className={styles["empresas-input-group"]}>
@@ -351,7 +421,9 @@ export default function EmpresasPage() {
                 type="text"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.nif}
-                onChange={(e) => handleNewEmpresaChange("nif", e.target.value)}
+                onChange={(e) =>
+                  handleNewEmpresaChange("nif", e.target.value)
+                }
               />
             </div>
             <div className={styles["empresas-input-group"]}>
@@ -363,11 +435,16 @@ export default function EmpresasPage() {
                 type="tel"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.contactPhone}
-                onChange={(e) => handleNewEmpresaChange("contactPhone", e.target.value)}
+                onChange={(e) =>
+                  handleNewEmpresaChange("contactPhone", e.target.value)
+                }
               />
             </div>
             <div className={styles["empresas-btn-group"]}>
-              <button onClick={handleCreateNewEmpresa} className={styles["empresas-btn-save"]}>
+              <button
+                onClick={handleCreateNewEmpresa}
+                className={styles["empresas-btn-save"]}
+              >
                 Crear Empresa
               </button>
               <button
@@ -461,7 +538,10 @@ export default function EmpresasPage() {
             <button onClick={handleSave} className={styles["empresas-btn-save"]}>
               Guardar
             </button>
-            <button onClick={() => setEditMode(false)} className={styles["empresas-btn-cancel"]}>
+            <button
+              onClick={() => setEditMode(false)}
+              className={styles["empresas-btn-cancel"]}
+            >
               Cancelar
             </button>
           </div>
@@ -529,6 +609,16 @@ export default function EmpresasPage() {
           </div>
         </div>
       )}
+
+      {/* Botón para ELIMINAR CUENTA y DATOS */}
+      <div className={styles["empresas-delete-container"]}>
+        <button
+          className={styles["empresas-btn-delete-account"]}
+          onClick={handleDeleteAccount}
+        >
+          Eliminar Cuenta y Datos
+        </button>
+      </div>
 
       {/* Modal de Confirmación/Alerta */}
       {modalData && modalData.isOpen && (

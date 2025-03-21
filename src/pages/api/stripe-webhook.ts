@@ -92,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
 
         // Recolectamos datos relevantes
-        const updateData: Record<string, any> = {
+        const updateData: Record<string, unknown> = {
           subscriptionId: subscription.id,
           status: subscription.status ?? "unknown",
           plan: subscription.items.data[0]?.price?.id ?? "SIN_PLAN",
