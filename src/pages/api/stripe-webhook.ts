@@ -10,8 +10,9 @@ export const config = {
 
 // Forzamos la versión con "as any"
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as any, // 👈 Versión beta
+  apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
+
 
 if (!admin.apps.length) {
   try {

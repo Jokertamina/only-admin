@@ -6,8 +6,9 @@ import { db } from "../../../lib/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as any, // Ajusta según tu versión
+  apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
+
 
 export async function POST(request: NextRequest) {
   try {

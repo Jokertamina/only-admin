@@ -4,8 +4,9 @@ import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as any, // Forzamos la versión Beta
+  apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
+
 
 export async function POST(req: NextRequest) {
   console.log("[stripe-create] Método recibido:", req.method);

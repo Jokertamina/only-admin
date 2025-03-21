@@ -102,7 +102,10 @@ export default function RegisterPage() {
         passwordInputRef.current.style.borderColor = "red";
         setPasswordError(errorMsg);
       } else {
-        emailInputRef.current && (emailInputRef.current.style.borderColor = "");
+        // En lugar de short-circuit expression, usamos if
+        if (emailInputRef.current) {
+          emailInputRef.current.style.borderColor = "";
+        }
         setPasswordError("");
       }
     }
@@ -146,10 +149,10 @@ export default function RegisterPage() {
         domicilio: trimmedDomicilio,
         nif: trimmedNIF,
         contactPhone: trimmedContactPhone,
-        plan: "SIN_PLAN",        // Valor inicial
-        estado_plan: "SIN_PLAN", // Valor inicial
-        subscriptionId: "",      // No tiene suscripción
-        status: "no_subscription", // Indica que no hay subs
+        plan: "SIN_PLAN",
+        estado_plan: "SIN_PLAN",
+        subscriptionId: "",
+        status: "no_subscription",
         subscriptionCreated: null,
         currentPeriodStart: null,
         currentPeriodEnd: null,
@@ -168,14 +171,12 @@ export default function RegisterPage() {
         empresaId,
       });
 
-      // 4. Rechequeo opcional: esperas a que "Users" realmente contenga el campo "empresaId"
-      //   con unos reintentos, para asegurar la sincronización
+      // 4. Rechequeo opcional
       let foundEmpresaId = false;
       const usersRef = collection(db, "Users");
       const MAX_ATTEMPTS = 3;
 
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        // Espera 100ms entre intentos
         await new Promise((resolve) => setTimeout(resolve, 100));
         const q = query(usersRef, where("uid", "==", uid));
         const snap = await getDocs(q);
@@ -183,14 +184,18 @@ export default function RegisterPage() {
           const userDoc = snap.docs[0].data();
           if (userDoc.empresaId === empresaId) {
             foundEmpresaId = true;
-            console.log(`[Registro] Confirmado empresaId ${empresaId} en la doc de Users (Intento ${attempt}).`);
+            console.log(
+              `[Registro] Confirmado empresaId ${empresaId} en la doc de Users (Intento ${attempt}).`
+            );
             break;
           }
         }
       }
 
       if (!foundEmpresaId) {
-        console.warn("[Registro] No se detectó empresaId en 'Users' tras varios intentos, pero continuamos...");
+        console.warn(
+          "[Registro] No se detectó empresaId en 'Users' tras varios intentos, pero continuamos..."
+        );
       }
 
       // 5. Redirigimos al panel admin

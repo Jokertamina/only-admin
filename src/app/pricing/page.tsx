@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useEmpresa } from "../context/EmpresaContext";
 import PricingCard from "../components/PricingCard";
 import CustomModal from "../components/CustomModal";
+import Loading from "../components/Loading"; // <-- Importa tu componente "Loading"
 import styles from "../styles/PricingPage.module.css"; // Importación como módulo
 
 const PricingPage: React.FC = () => {
@@ -35,7 +36,7 @@ const PricingPage: React.FC = () => {
       return;
     }
     if (!empresaId) {
-      setModalMessage("Debes iniciar sesión para contratar un plan.");
+      setModalMessage("Debes esperar a que se carguen tus datos o iniciar sesión para contratar un plan.");
       setShowModal(true);
       return;
     }
@@ -44,6 +45,7 @@ const PricingPage: React.FC = () => {
       setShowModal(true);
       return;
     }
+
     try {
       const res = await fetch("/api/stripe-create", {
         method: "POST",
@@ -130,6 +132,25 @@ const PricingPage: React.FC = () => {
   const _customPlanHandlers = { handleCustomPlan, handleCustomPlanPayment };
   console.log("Custom plan handlers reservados:", _customPlanHandlers);
 
+  // 1) Si aún está "loading", mostramos el spinner
+  if (loading) {
+    return <Loading />;
+  }
+
+  // 2) Si ya no está loading, pero no hay empresaId
+  //    Podríamos mostrar un fallback
+  if (!empresaId) {
+    return (
+      <main className={styles["pricing-container"]}>
+        <h1 className={styles["pricing-title"]}>Cargando datos...</h1>
+        <p className={styles["pricing-description"]}>
+          No se ha detectado tu empresa. Si acabas de registrarte, espera unos segundos o recarga.
+        </p>
+      </main>
+    );
+  }
+
+  // 3) Render normal
   return (
     <main className={styles["pricing-container"]}>
       <h1 className={styles["pricing-title"]}>Precios</h1>
@@ -167,22 +188,6 @@ const PricingPage: React.FC = () => {
           onBuy={() => handleBuyPlan("PREMIUM")}
           disabled={currentPlan === "PREMIUM"}
         />
-
-        {/* Tarjeta de plan personalizado (actualmente oculta, se deja comentada) */}
-        
-        {/* <PricingCard
-          plan="Personalizado"
-          price="Pago inicial según contratación + 55€/mes"
-          features={[
-            "Coste inicial variable según acuerdo",
-            "Cuota mensual de 55€",
-            "Personalización según tus necesidades",
-            "Asesoramiento personalizado",
-          ]}
-          buttonText={currentPlan === "CUSTOM" ? "Plan actual" : "Proximamente"}
-          onBuy={currentPlan === "CUSTOM" ? handleCustomPlanPayment : handleCustomPlan}
-          disabled//={currentPlan === "CUSTOM"}
-        /> */}
       </div>
 
       <CustomModal
