@@ -1,4 +1,4 @@
-// src/pages/api/stripe-webhook.yts
+// src/app/api/stripe-webhook/route.ts
 
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
@@ -54,14 +54,12 @@ export async function POST(req: Request) {
     response.headers.set("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
     return response;
   }
-
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
   }
 
   let event: Stripe.Event;
   let rawBody: Buffer;
-
   try {
     // 1) Leer el body crudo para poder verificar la firma
     rawBody = await readRawBody(req);
@@ -105,42 +103,36 @@ export async function POST(req: Request) {
 
       // -----------------------------------------------------------
       // Suscripción creada/actualizada. Actualizamos la DB
-      // con el plan actual. Si es un downgrade, seguimos en PREMIUM
-      // hasta que termine la trial (y luego pasamos a BÁSICO).
+      // con el plan actual.
+      // Si es downgrade, mantenemos PREMIUM hasta que termine la trial,
+      // y una vez finalizada, se actualiza a BASICO.
       // -----------------------------------------------------------
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => ${event.type}`);
 
-        // Intentamos leer empresaId de la metadata
         const empresaId = subscription.metadata?.empresaId;
         if (!empresaId) {
           console.log("[stripe-webhook] ❌ No hay metadata.empresaId en la suscripción.");
           break;
         }
 
-        // Verificamos el priceId para ver si es Basic o Premium
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
         const subPriceId = subscription.items.data[0]?.price?.id;
-
-        // Lógica de plan:
-        // - Si es downgrade (metadata.downgrade = true), mantenemos PREMIUM hasta que acabe la trial
-        // - Si no es downgrade, actualizamos según priceId
         let newPlan: string;
+
         if (subscription.metadata?.downgrade === "true") {
-          // Si la trial ha terminado, pasamos a BASICO
+          // Si la trial ha terminado, cambiamos a BASICO, de lo contrario, se mantiene PREMIUM.
           if (subscription.trial_end && subscription.trial_end * 1000 < Date.now()) {
             newPlan = "BASICO";
           } else {
             newPlan = "PREMIUM";
           }
         } else {
-          // Caso normal: determinamos plan según priceId
           newPlan = subPriceId === basicPriceId ? "BASICO" : "PREMIUM";
         }
 
-        // Preparamos la data para Firestore
         const updateData: Record<string, unknown> = {
           subscriptionId: subscription.id,
           status: subscription.status || "unknown",
@@ -161,7 +153,9 @@ export async function POST(req: Request) {
       }
 
       // -----------------------------------------------------------
-      // Suscripción eliminada. Dejamos el plan en "SIN_PLAN".
+      // Suscripción eliminada. Validación cruzada:
+      // Se consulta Firestore para ver si existe una bandera downgradePending.
+      // Si existe, se actualiza el plan a BASICO en lugar de SIN_PLAN.
       // -----------------------------------------------------------
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
@@ -169,13 +163,21 @@ export async function POST(req: Request) {
 
         const empresaId = subscription.metadata?.empresaId;
         if (empresaId) {
+          const empresaRef = admin.firestore().collection(EMPRESAS_COLLECTION).doc(empresaId);
+          const empresaSnap = await empresaRef.get();
+          const empresaData = empresaSnap.data() || {};
+          let newPlan = "SIN_PLAN";
+          if (empresaData.downgradePending) {
+            newPlan = "BASICO";
+          }
           await actualizarEmpresa(empresaId, {
-            plan: "SIN_PLAN",
+            plan: newPlan,
             status: "canceled",
             subscriptionId: "",
-            estado_plan: "SIN_PLAN",
+            estado_plan: newPlan,
+            downgradePending: false, // Limpiamos la bandera
           });
-          console.log(`[stripe-webhook] Empresa ${empresaId} => sin suscripción`);
+          console.log(`[stripe-webhook] Empresa ${empresaId} actualizada a ${newPlan}`);
         }
         break;
       }
@@ -184,7 +186,6 @@ export async function POST(req: Request) {
         console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
         break;
     }
-
     return new Response("OK", { status: 200 });
   } catch (error) {
     console.error("[stripe-webhook] ❌ Error procesando el evento:", error);
