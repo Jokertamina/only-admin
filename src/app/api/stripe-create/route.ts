@@ -1,153 +1,121 @@
-// src/app/api/stripe-create/route.ts
-
-import { NextRequest, NextResponse } from "next/server";
+// src/app/api/stripe-webhook/route.ts
+import { VercelRequest, VercelResponse } from "@vercel/node";
 import Stripe from "stripe";
-import { adminDb } from "../../../lib/firebaseAdminConfig";
+import * as admin from "firebase-admin";
+
+export const config = {
+  api: { bodyParser: false },
+};
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  // Forzamos la versión Beta en TS
   apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
 
-export async function POST(req: NextRequest) {
-  console.log("[stripe-create] Método recibido:", req.method);
-
-  if (req.method !== "POST") {
-    return NextResponse.json("Method Not Allowed", { status: 405 });
-  }
-
-  let body: { plan?: string; empresaId?: string };
+if (!admin.apps.length) {
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json("Invalid JSON", { status: 400 });
-  }
-
-  const { plan, empresaId } = body;
-  if (!plan || !empresaId) {
-    return NextResponse.json("Missing required fields", { status: 400 });
-  }
-
-  try {
-    // 1) Verificamos si la empresa existe en DB
-    const empresaRef = adminDb.collection("Empresas").doc(empresaId);
-    const empresaSnap = await empresaRef.get();
-    if (!empresaSnap.exists) {
-      return NextResponse.json("Empresa no encontrada", { status: 404 });
-    }
-
-    const data = empresaSnap.data() || {};
-    let stripeCustomerId = data.stripeCustomerId as string | undefined;
-    const currentSubscriptionId = data.subscriptionId as string | undefined;
-
-    // 2) Determinamos Price IDs
-    const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
-    const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-    const newPriceId = plan === "PREMIUM" ? premiumPriceId : basicPriceId;
-
-    // 3) Si no existe stripeCustomerId, lo creamos
-    if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: (data.email as string) || undefined,
-        metadata: { empresaId }, // opcional
-      });
-      stripeCustomerId = customer.id;
-      await empresaRef.update({ stripeCustomerId });
-    }
-
-    // 4) Si no hay suscripción previa => creamos Checkout Session con subscription_data
-    if (!currentSubscriptionId) {
-      // Añadimos subscription_data con metadata para que la suscripción final herede empresaId
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
-        customer: stripeCustomerId,
-        line_items: [{ price: newPriceId, quantity: 1 }],
-        subscription_data: {
-          metadata: { empresaId, plan },
-        },
-      });
-      console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
-
-      // El webhook se encargará de actualizar la DB (customer.subscription.created)
-      return NextResponse.json({
-        url: session.url,
-        message: "Sesión de pago creada. Completa el pago para activar tu plan.",
-      });
-    }
-
-    // 5) Hay suscripción activa => la obtenemos
-    const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
-    const currentPriceId = currentSubscription.items.data[0]?.price?.id;
-
-    // Si ya está en el mismo plan
-    if (currentPriceId === newPriceId) {
-      return NextResponse.json({ message: "Ya estás en el plan solicitado" });
-    }
-
-    // --- UPGRADE (Básico → Premium)
-    if (plan === "PREMIUM") {
-      const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
-        proration_behavior: "always_invoice",
-        items: [
-          {
-            id: currentSubscription.items.data[0].id,
-            price: newPriceId,
-          },
-        ],
-        // Reinyectamos metadata para que la sub final tenga empresaId
-        metadata: { empresaId, plan: "PREMIUM" },
-      });
-      console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
-
-      // Actualizamos la DB inmediatamente
-      await empresaRef.update({
-        plan: "PREMIUM",
-        estado_plan: "PREMIUM",
-        subscriptionId: updatedSubscription.id,
-      });
-
-      return NextResponse.json({
-        message: "Plan actualizado a Premium de forma inmediata",
-      });
-    }
-
-    // --- DOWNGRADE (Premium → Básico) ---
-    if (plan === "BASICO") {
-      // Creamos un schedule para cambiar a Básico al final del ciclo actual
-      const schedule = await stripe.subscriptionSchedules.create({
-        from_subscription: currentSubscriptionId,
-        end_behavior: "release",
-        phases: [
-          {
-            items: [{ price: currentPriceId, quantity: 1 }],
-            end_date: currentSubscription.current_period_end,
-          },
-          {
-            items: [{ price: newPriceId, quantity: 1 }],
-          },
-        ],
-      });
-
-      console.log("[stripe-create] Downgrade programado (schedule):", schedule.id);
-
-      // Mantenemos plan= "PREMIUM" hasta que finalice
-      await empresaRef.update({
-        plan: "PREMIUM",
-        estado_plan: "PREMIUM",
-        subscriptionScheduleId: schedule.id,
-      });
-
-      return NextResponse.json({
-        message:
-          "Downgrade programado. Mantendrás Premium hasta el final del ciclo, luego pasarás automáticamente a Básico.",
-      });
-    }
-
-    return NextResponse.json({ message: "Operación completada (sin cambios)" });
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT no está definido");
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(serviceAccount)),
+    });
+    console.log("[Firebase] Inicializado correctamente");
   } catch (error) {
-    console.error("[stripe-create] Error:", error);
-    return NextResponse.json("Internal Server Error", { status: 500 });
+    console.error("[Firebase] Error al inicializar:", error);
+  }
+}
+
+async function readRawBody(req: VercelRequest): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log("[stripe-webhook] Método recibido:", req.method);
+
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
+    return res.status(200).send("OK");
+  }
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).send("Method Not Allowed");
+  }
+
+  const rawBody = await readRawBody(req);
+  const signature = req.headers["stripe-signature"] as string;
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err) {
+    console.error("[stripe-webhook] Error verificando firma:", err);
+    return res.status(400).send(`Webhook Error: ${err}`);
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        console.log("[stripe-webhook] checkout.session.completed");
+        break;
+      }
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log(`[stripe-webhook] Subscription ${subscription.id} => ${event.type}`);
+        const empresaId = subscription.metadata?.empresaId;
+        if (!empresaId) {
+          console.log("[stripe-webhook] ❌ No metadata.empresaId en la suscripción.");
+          break;
+        }
+        const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
+        // Determinar el plan en función del precio del primer item
+        const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
+        const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
+        const subPriceId = subscription.items.data[0]?.price?.id;
+        const newPlan = subPriceId === basicPriceId ? "BASICO" : "PREMIUM";
+        const updateData: Record<string, unknown> = {
+          subscriptionId: subscription.id,
+          status: subscription.status || "unknown",
+          plan: newPlan,
+          subscriptionCreated: subscription.created || null,
+          currentPeriodStart: subscription.current_period_start || null,
+          currentPeriodEnd: subscription.current_period_end || null,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+          canceledAt: subscription.canceled_at || null,
+          trialStart: subscription.trial_start || null,
+          trialEnd: subscription.trial_end || null,
+          endedAt: subscription.ended_at || null,
+          estado_plan: newPlan,
+        };
+        await empresaRef.update(updateData);
+        console.log("[stripe-webhook] DB actualizada con sub info =>", updateData);
+        break;
+      }
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log(`[stripe-webhook] Subscription ${subscription.id} => deleted`);
+        const empresaId = subscription.metadata?.empresaId;
+        if (!empresaId) break;
+        const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
+        await empresaRef.update({
+          plan: "SIN_PLAN",
+          status: "canceled",
+          subscriptionId: "",
+          estado_plan: "SIN_PLAN",
+        });
+        console.log(`[stripe-webhook] Empresa ${empresaId} => sin suscripción`);
+        break;
+      }
+      default:
+        console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
+        break;
+    }
+    return res.status(200).send("OK");
+  } catch (error) {
+    console.error("[stripe-webhook] Error procesando evento:", error);
+    return res.status(400).send(`Event processing error: ${error}`);
   }
 }
