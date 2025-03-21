@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
   }
 
-  const session = event.data.object as any;
+  const session = event.data.object as Stripe.Subscription | Stripe.Checkout.Session | Stripe.Invoice | Stripe.Charge;
   const metadata = session.metadata || {};
   const empresaId = metadata.empresaId;
 
@@ -39,7 +39,9 @@ export async function POST(req: NextRequest) {
         await empresaRef.update({ pendingDowngrade: true });
         console.log(`✅ Downgrade confirmado para empresa ${empresaId}`);
       } else {
-        const subscriptionId = session.subscription;
+        const checkoutSession = session as Stripe.Checkout.Session;
+        const subscriptionId = checkoutSession.subscription as string;
+
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
         await empresaRef.update({
@@ -113,10 +115,11 @@ export async function POST(req: NextRequest) {
       break;
 
     case "customer.subscription.deleted":
-      const customerId = session.customer;
+      const subscriptionDeleted = session as Stripe.Subscription;
+      const customerId = subscriptionDeleted.customer;
 
-      if (!customerId) {
-        console.warn(`⚠️ customerId es nulo, evento ignorado para empresa ${empresaId}`);
+      if (typeof customerId !== "string") {
+        console.warn(`⚠️ customerId es inválido, evento ignorado para empresa ${empresaId}`);
         break;
       }
 
