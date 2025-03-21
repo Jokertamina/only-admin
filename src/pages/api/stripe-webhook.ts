@@ -34,7 +34,6 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("[stripe-webhook] Método recibido:", req.method);
-
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
@@ -71,7 +70,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           break;
         }
         const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
-        // Determinar el plan en función del precio del primer item
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
         const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
         const subPriceId = subscription.items.data[0]?.price?.id;
@@ -79,6 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const updateData: Record<string, unknown> = {
           subscriptionId: subscription.id,
           status: subscription.status || "unknown",
+          // Guardamos el plan como "PREMIUM" o "BASICO" (no el price id)
           plan: newPlan,
           subscriptionCreated: subscription.created || null,
           currentPeriodStart: subscription.current_period_start || null,
@@ -115,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     return res.status(200).send("OK");
   } catch (error) {
-    console.error("[stripe-webhook] Error procesando evento:", error);
+    console.error("[stripe-webhook] Error procesando el evento:", error);
     return res.status(400).send(`Event processing error: ${error}`);
   }
 }
