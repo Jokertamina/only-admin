@@ -102,7 +102,7 @@ export default function RegisterPage() {
         passwordInputRef.current.style.borderColor = "red";
         setPasswordError(errorMsg);
       } else {
-        passwordInputRef.current.style.borderColor = "green";
+        emailInputRef.current && (emailInputRef.current.style.borderColor = "");
         setPasswordError("");
       }
     }
@@ -140,12 +140,24 @@ export default function RegisterPage() {
       const uid = userCred.user.uid;
 
       // 2. Creamos el documento en Empresas (guardando también el email)
+      //    Añadimos campos de suscripción con valores por defecto
       const docRef = await addDoc(collection(db, "Empresas"), {
         nombre: trimmedNombreEmpresa,
         domicilio: trimmedDomicilio,
         nif: trimmedNIF,
         contactPhone: trimmedContactPhone,
-        plan: "SIN_PLAN",
+        plan: "SIN_PLAN",        // Valor inicial
+        estado_plan: "SIN_PLAN", // Valor inicial
+        subscriptionId: "",      // No tiene suscripción
+        status: "no_subscription", // Indica que no hay subs
+        subscriptionCreated: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        trialStart: null,
+        trialEnd: null,
+        endedAt: null,
         email: trimmedEmail,
       });
       const empresaId = docRef.id;
@@ -157,16 +169,14 @@ export default function RegisterPage() {
       });
 
       // 4. Rechequeo opcional: esperas a que "Users" realmente contenga el campo "empresaId"
-      //   para evitar problemas de sincronización.
-      //   Con unos pequeños reintentos, reduces la posibilidad de que /admin no lo "vea" a la primera.
+      //   con unos reintentos, para asegurar la sincronización
       let foundEmpresaId = false;
       const usersRef = collection(db, "Users");
       const MAX_ATTEMPTS = 3;
 
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        // Espera 100ms entre intentos (puedes ajustar a tu gusto)
+        // Espera 100ms entre intentos
         await new Promise((resolve) => setTimeout(resolve, 100));
-
         const q = query(usersRef, where("uid", "==", uid));
         const snap = await getDocs(q);
         if (!snap.empty) {
@@ -180,7 +190,7 @@ export default function RegisterPage() {
       }
 
       if (!foundEmpresaId) {
-        console.warn("[Registro] No se detectó empresaId en la colección 'Users' tras varios intentos, pero continuamos...");
+        console.warn("[Registro] No se detectó empresaId en 'Users' tras varios intentos, pero continuamos...");
       }
 
       // 5. Redirigimos al panel admin
