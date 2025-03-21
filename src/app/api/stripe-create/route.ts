@@ -103,10 +103,11 @@ export async function POST(req: NextRequest) {
     }
 
     // -----------------------------------
-    // UPGRADE => Premium inmediato
+    // UPGRADE => Premium inmediato (remover cancel_at_period_end)
     // -----------------------------------
     if (plan === "PREMIUM") {
       const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+        cancel_at_period_end: false, // Se elimina la cancelación pendiente si la hubiera
         proration_behavior: "always_invoice",
         items: [
           {
