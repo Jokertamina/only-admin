@@ -8,11 +8,10 @@ export const config = {
   api: { bodyParser: false }, // Para leer el body crudo
 };
 
-// Forzamos la versión con "as any"
+// Forzamos la versión con "as unknown as Stripe.LatestApiVersion"
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
-
 
 if (!admin.apps.length) {
   try {
@@ -46,13 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send("OK");
   }
 
-  // Solo POST
+  // Solo aceptamos POST
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).send("Method Not Allowed");
   }
 
-  // Leemos el raw body y construimos el evento
+  // Construimos el evento de Stripe
   const rawBody = await readRawBody(req);
   const signature = req.headers["stripe-signature"] as string;
   let event: Stripe.Event;
@@ -65,11 +64,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     switch (event.type) {
-      // 1) checkout.session.completed => P.ej. si deseas algo puntual cuando finaliza Checkout
+      // 1) checkout.session.completed => Ocurre tras finalizar Checkout
       case "checkout.session.completed": {
         console.log("[stripe-webhook] checkout.session.completed");
-        // Si quisieras, puedes actualizar algo en la DB,
-        // pero habitualmente "customer.subscription.created"/"updated" da más info.
+        // Normalmente no actualizamos plan aquí, sino en los eventos de sub (created/updated).
         break;
       }
 
@@ -82,8 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Intentamos leer empresaId de metadata
         const empresaId = subscription.metadata?.empresaId;
-
-        // Si no lo tenemos, buscar con where("subscriptionId","==",subscription.id) 
         if (!empresaId) {
           console.log("[stripe-webhook] ❌ No hay metadata.empresaId en la sub. Hacer where(...) si es tu caso.");
           break;
@@ -108,7 +104,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Ajustamos "estado_plan" a tu gusto
         if (subscription.status === "active") {
-          updateData.estado_plan = "BASICO"; // O "PREMIUM", depende de la logic
+          // Puedes cambiar "BASICO" a "PREMIUM" si tu price ID coincide con plan Premium
+          updateData.estado_plan = "BASICO"; 
         } else if (subscription.status === "trialing") {
           updateData.estado_plan = "TRIAL";
         } else {
@@ -126,9 +123,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => deleted`);
 
-        const empresaId = subscription.metadata?.empresaId; 
+        const empresaId = subscription.metadata?.empresaId;
         if (!empresaId) {
-          // si no tienes metadata, hacer un where
+          // si no tienes metadata, hacer un where("subscriptionId", "==", subscription.id)
           break;
         }
 
