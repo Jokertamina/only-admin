@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import * as admin from "firebase-admin";
 
 export const config = {
-  api: { bodyParser: false },
+  api: { bodyParser: false }, // Para leer el body crudo
 };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
@@ -24,6 +24,7 @@ if (!admin.apps.length) {
   }
 }
 
+// Función para obtener el raw body en Vercel
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -34,6 +35,7 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("[stripe-webhook] Método recibido:", req.method);
+
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
@@ -64,20 +66,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => ${event.type}`);
+
+        // Intentamos leer empresaId de metadata
         const empresaId = subscription.metadata?.empresaId;
         if (!empresaId) {
-          console.log("[stripe-webhook] ❌ No metadata.empresaId en la suscripción.");
+          console.log("[stripe-webhook] ❌ No hay metadata.empresaId en la suscripción.");
           break;
         }
         const empresaRef = admin.firestore().collection("Empresas").doc(empresaId);
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-        const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
+        // premiumPriceId eliminado ya que no se usa
         const subPriceId = subscription.items.data[0]?.price?.id;
         const newPlan = subPriceId === basicPriceId ? "BASICO" : "PREMIUM";
         const updateData: Record<string, unknown> = {
           subscriptionId: subscription.id,
           status: subscription.status || "unknown",
-          // Guardamos el plan como "PREMIUM" o "BASICO" (no el price id)
           plan: newPlan,
           subscriptionCreated: subscription.created || null,
           currentPeriodStart: subscription.current_period_start || null,
@@ -114,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     return res.status(200).send("OK");
   } catch (error) {
-    console.error("[stripe-webhook] Error procesando el evento:", error);
+    console.error("[stripe-webhook] ❌ Error procesando el evento:", error);
     return res.status(400).send(`Event processing error: ${error}`);
   }
 }

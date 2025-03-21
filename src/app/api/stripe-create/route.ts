@@ -106,18 +106,13 @@ export async function POST(req: NextRequest) {
         metadata: { empresaId },
         phases: [
           {
-            // Phase 1: keep current Premium until the end of the cycle
-            ...({
-              start_date: currentSub.current_period_start,
-              end_date: endDate,
-              items: [{ price: currentSubPriceId!, quantity }],
-            } as any),
+            // Fase 1: Mantener Premium hasta el fin del ciclo
+            end_date: endDate,
+            items: [{ price: currentSubPriceId!, quantity }],
           },
           {
-            // Phase 2: switch to Basic (trial until Premium ends; then Basic becomes active)
-            ...({
-              items: [{ price: basicPriceId, quantity }],
-            } as any),
+            // Fase 2: Cambiar a Básico
+            items: [{ price: basicPriceId, quantity }],
           },
         ],
       });
