@@ -80,11 +80,15 @@ export async function POST(req: Request) {
   // 3) Procesar el evento
   try {
     switch (event.type) {
+      // -----------------------------------------------------------
+      // Se completa el Checkout (pago). Si es un downgrade, marcamos
+      // la suscripción actual para que se cancele al final del ciclo.
+      // -----------------------------------------------------------
       case "checkout.session.completed": {
         console.log("[stripe-webhook] checkout.session.completed");
-        // Si es una sesión de downgrade, se marca la suscripción Premium para cancelación al final del ciclo.
         const session = event.data.object as Stripe.Checkout.Session;
         const metadata = session.metadata || {};
+
         if (metadata.downgrade === "true" && metadata.currentSubscriptionId) {
           const currentSubscriptionId = metadata.currentSubscriptionId;
           await stripe.subscriptions.update(currentSubscriptionId, {
@@ -97,6 +101,11 @@ export async function POST(req: Request) {
         break;
       }
 
+      // -----------------------------------------------------------
+      // Suscripción creada/actualizada. Actualizamos la DB
+      // con el plan actual. Si es un downgrade, seguimos en PREMIUM
+      // hasta que termine la trial (y luego pasamos a BÁSICO).
+      // -----------------------------------------------------------
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
@@ -113,8 +122,9 @@ export async function POST(req: Request) {
         const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
         const subPriceId = subscription.items.data[0]?.price?.id;
 
-        // Si se trata de una solicitud de downgrade, mantenemos PREMIUM hasta que finalice la trial
-        // (se comprueba si trial_end ya ha pasado)
+        // Lógica de plan:
+        // - Si es downgrade (metadata.downgrade = true), mantenemos PREMIUM hasta que acabe la trial
+        // - Si no es downgrade, actualizamos según priceId
         let newPlan: string;
         if (subscription.metadata?.downgrade === "true") {
           // Si la trial ha terminado, pasamos a BASICO
@@ -148,6 +158,9 @@ export async function POST(req: Request) {
         break;
       }
 
+      // -----------------------------------------------------------
+      // Suscripción eliminada. Dejamos el plan en "SIN_PLAN".
+      // -----------------------------------------------------------
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         console.log(`[stripe-webhook] Subscription ${subscription.id} => deleted`);

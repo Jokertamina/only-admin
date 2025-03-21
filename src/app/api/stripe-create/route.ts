@@ -71,7 +71,7 @@ export async function POST(req: Request) {
         customer: stripeCustomerId,
         line_items: [{ price: priceId, quantity: 1 }],
         subscription_data: {
-          ...(trialEnd && { trial_end: trialEnd }), // Para que el nuevo plan empiece tras el ciclo Premium
+          ...(trialEnd && { trial_end: trialEnd }), // Para que el nuevo plan empiece tras el ciclo Premium (downgrade)
           metadata,
         },
       });
@@ -79,9 +79,20 @@ export async function POST(req: Request) {
 
     // -----------------------------------
     // NO SUBSCRIPCIÓN PREVIA => CHECKOUT
+    //   - Se actualiza la DB inmediatamente al plan elegido
+    //   - Si no paga, Stripe cancela la sub y el webhook la deja en "SIN_PLAN"
     // -----------------------------------
     if (!currentSubscriptionId) {
       const newPriceId = plan === "PREMIUM" ? PREMIUM_PRICE_ID : BASICO_PRICE_ID;
+
+      // Actualizamos la DB para indicar que el usuario tiene ahora este plan.
+      // Si el usuario no paga, el webhook "customer.subscription.deleted" revertirá a SIN_PLAN.
+      await empresaRef.update({
+        plan,
+        estado_plan: plan,
+        subscriptionId: "", // se rellenará en el webhook
+      });
+
       const session = await createCheckoutSession(newPriceId, { empresaId, plan });
       console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
 
@@ -110,6 +121,7 @@ export async function POST(req: Request) {
     // UPGRADE => Premium inmediato
     //  - Eliminar cancel_at_period_end (por si existía)
     //  - Cambiar a Premium y prorratear
+    //  - Actualizar DB
     // -----------------------------------
     if (plan === "PREMIUM") {
       const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
@@ -127,6 +139,7 @@ export async function POST(req: Request) {
 
       console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
 
+      // Actualizamos la DB para indicar que el plan ahora es PREMIUM
       await empresaRef.update({
         plan: "PREMIUM",
         estado_plan: "PREMIUM",
