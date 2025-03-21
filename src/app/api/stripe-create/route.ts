@@ -1,6 +1,8 @@
-import { VercelRequest, VercelResponse } from "@vercel/node";
+// src/app/api/stripe-webhook/route.ts
+
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
+import { NextResponse } from "next/server";
 
 export const config = {
   api: { bodyParser: false }, // Para leer el body crudo
@@ -26,13 +28,10 @@ if (!admin.apps.length) {
 
 const EMPRESAS_COLLECTION = "Empresas";
 
-// Función para obtener el raw body en Vercel
-async function readRawBody(req: VercelRequest): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-  }
-  return Buffer.concat(chunks);
+// Función para obtener el raw body en Next.js (Request nativo)
+async function readRawBody(req: Request): Promise<Buffer> {
+  const body = await req.arrayBuffer();
+  return Buffer.from(body);
 }
 
 // Función auxiliar para actualizar la información de la empresa en Firestore
@@ -42,28 +41,30 @@ async function actualizarEmpresa(empresaId: string, updateData: Record<string, u
   console.log(`[stripe-webhook] Empresa ${empresaId} actualizada con:`, updateData);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function POST(req: Request) {
   console.log("[stripe-webhook] Método recibido:", req.method);
 
+  // Manejo de OPTIONS
   if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
-    return res.status(200).send("OK");
+    const response = NextResponse.json("OK", { status: 200 });
+    response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, stripe-signature");
+    return response;
   }
-  
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).send("Method Not Allowed");
+    return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
   }
 
   const rawBody = await readRawBody(req);
-  const signature = req.headers["stripe-signature"] as string;
+  const signature = req.headers.get("stripe-signature") || "";
   let event: Stripe.Event;
+
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (err) {
     console.error("[stripe-webhook] Error verificando firma:", err);
-    return res.status(400).send(`Webhook Error: ${err}`);
+    return new Response(`Webhook Error: ${err}`, { status: 400 });
   }
 
   try {
@@ -147,9 +148,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[stripe-webhook] Evento no manejado: ${event.type}`);
         break;
     }
-    return res.status(200).send("OK");
+    return new Response("OK", { status: 200 });
   } catch (error) {
     console.error("[stripe-webhook] ❌ Error procesando el evento:", error);
-    return res.status(400).send(`Event processing error: ${error}`);
+    return new Response(`Event processing error: ${error}`, { status: 400 });
   }
 }
