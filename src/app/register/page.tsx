@@ -167,14 +167,46 @@ export default function RegisterPage() {
       <div className={styles["register-card"]}>
         <h1 className={styles["register-heading"]}>Registro</h1>
         <form onSubmit={handleRegister} className={styles["register-form"]}>
-          {/* Campos del formulario permanecen iguales, eliminados campos suscripción innecesarios del registro inicial */}
-          {/* Resto del código permanece intacto */}
+          <div className={styles["register-form-group"]}>
+            <label className={styles["register-label"]}>Nombre de la empresa</label>
+            <input type="text" className={styles["register-input"]} value={nombreEmpresa} onChange={(e) => setNombreEmpresa(e.target.value)} required/>
+          </div>
+
+          <div className={styles["register-form-group"]}>
+            <label className={styles["register-label"]}>Domicilio Legal</label>
+            <input type="text" className={styles["register-input"]} value={domicilio} onChange={(e) => setDomicilio(e.target.value)} required/>
+          </div>
+
+          <div className={styles["register-form-group"]}>
+            <label className={styles["register-label"]}>NIF / CIF</label>
+            <input ref={nifInputRef} type="text" className={styles["register-input"]} value={nif} onChange={handleNifChange} required/>
+            {nifError && <p className={styles["input-error"]}>{nifError}</p>}
+          </div>
+
+          <div className={styles["register-form-group"]}>
+            <label className={styles["register-label"]}>Teléfono de contacto</label>
+            <input type="tel" className={styles["register-input"]} value={contactPhone} onChange={(e) => /^\+?[0-9]*$/.test(e.target.value) && setContactPhone(e.target.value)} required/>
+          </div>
+
+          <div className={styles["register-form-group"]}>
+            <label className={styles["register-label"]}>Email</label>
+            <input ref={emailInputRef} type="email" className={styles["register-input"]} value={email} onChange={handleEmailChange} required/>
+            {emailError && <p className={styles["input-error"]}>{emailError}</p>}
+          </div>
+
+          <div className={styles["register-form-group"]}>
+            <label className={styles["register-label"]}>Contraseña</label>
+            <input ref={passwordInputRef} type="password" className={styles["register-input"]} value={password} onChange={handlePasswordChange} required/>
+            {passwordError && <p className={styles["input-error"]}>{passwordError}</p>}
+          </div>
+
+          {error && <p className={styles["register-error"]}>{error}</p>}
+
+          <button type="submit" className={styles["register-button"]}>Registrarme</button>
         </form>
+
         <p className={styles["register-extra"]}>
-          ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className={styles["register-link"]}>
-            Inicia sesión
-          </Link>
+          ¿Ya tienes cuenta? <Link href="/login" className={styles["register-link"]}>Inicia sesión</Link>
         </p>
       </div>
     </main>
