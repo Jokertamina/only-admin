@@ -132,33 +132,31 @@ export async function POST(req: NextRequest) {
     }
 
     // -----------------------------------
-    // DOWNGRADE => Cancela Premium al final, crea nuevo Checkout con trial
+    // DOWNGRADE => Programar cambio a Básico
     // -----------------------------------
     if (plan === "BASICO") {
-      // 1) Marcar la sub actual para cancelar al final del ciclo
-      await stripe.subscriptions.update(currentSubscriptionId, {
-        cancel_at_period_end: true,
-      });
-      console.log(
-        `[stripe-create] Suscripción Premium marcada para cancelación al final del ciclo: ${currentSubscriptionId}`
-      );
-
-      // 2) Actualizar la DB => seguimos en Premium hasta que finalice
+      // No se cancela la suscripción de inmediato.
+      // Actualizamos la DB para indicar que se solicitó un downgrade,
+      // manteniendo el plan actual como "PREMIUM".
       await empresaRef.update({
         plan: "PREMIUM",
         estado_plan: "PREMIUM",
         downgradePending: true,
       });
 
-      // 3) Crear una nueva sesión con trial_end
       const periodEnd = currentSub.current_period_end;
-      const session = await createCheckoutSession(BASICO_PRICE_ID, { empresaId, plan: "BASICO" }, periodEnd);
+      // Incluimos metadata para identificar el downgrade y el id de la suscripción actual.
+      const session = await createCheckoutSession(
+        BASICO_PRICE_ID,
+        { empresaId, plan: "BASICO", downgrade: "true", currentSubscriptionId },
+        periodEnd
+      );
 
       console.log("[stripe-create] Downgrade: nueva sesión con trial:", session.id);
       return NextResponse.json({
         url: session.url,
         message:
-          "Se ha programado la cancelación de Premium y creado una sesión con trial para Básico. Mantendrás Premium hasta fin de ciclo, luego Básico entrará en vigor.",
+          "Se ha programado la transición a Básico. Mantendrás Premium hasta fin de ciclo, luego Básico entrará en vigor si el pago se completa.",
       });
     }
 

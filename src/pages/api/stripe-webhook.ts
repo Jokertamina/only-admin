@@ -71,6 +71,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (event.type) {
       case "checkout.session.completed": {
         console.log("[stripe-webhook] checkout.session.completed");
+        // Si es una sesión de downgrade, se marca la suscripción premium para cancelación al final del ciclo.
+        const session = event.data.object as Stripe.Checkout.Session;
+        const metadata = session.metadata || {};
+        if (metadata.downgrade === "true" && metadata.currentSubscriptionId) {
+          const currentSubscriptionId = metadata.currentSubscriptionId;
+          const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
+            cancel_at_period_end: true,
+          });
+          console.log(
+            `[stripe-webhook] Downgrade confirmado: la suscripción premium ${currentSubscriptionId} se cancelará al final del ciclo.`
+          );
+        }
         break;
       }
       case "customer.subscription.created":
