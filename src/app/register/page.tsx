@@ -4,7 +4,6 @@ import { useState, useRef } from "react";
 import { auth, db } from "../../lib/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "../styles/RegisterPage.module.css";
 
