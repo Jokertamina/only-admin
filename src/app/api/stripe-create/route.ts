@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       line_items: [{ price: priceIds[plan], quantity: 1 }],
       metadata: { empresaId, plan },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cancel`,
+      success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+      cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
 
     });
 
