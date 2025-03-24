@@ -8,18 +8,18 @@ export default function Footer() {
       <div className={styles.footerContainer}>
         {/* Logo y marca */}
         <div className={styles.footerBrand}>
-        <Link href="/" className={styles["footer-brand"]}>
-          <div className={styles["logo-container"]}>
-            <Image
-              src="/images/logo-nombre.svg"
-              alt="Symcrox Logo"
-              width={180} // Ajustado
-              height={60} // Ajustado
-              priority
-              className={styles["logo-img"]}
-            />
-          </div>
-        </Link>
+          <Link href="/" className={styles["footer-brand"]}>
+            <div className={styles["logo-container"]}>
+              <Image
+                src="/images/logo-nombre.svg"
+                alt="Symcrox Logo"
+                width={180} // Ajustado
+                height={60} // Ajustado
+                priority
+                className={styles["logo-img"]}
+              />
+            </div>
+          </Link>
         </div>
 
         {/* Información de contacto */}
@@ -35,11 +35,13 @@ export default function Footer() {
         {/* Links legales */}
         <div className={styles.footerLinks}>
           <ul>
-            <li><Link href="/privacy-policy">Política de Privacidad</Link></li>
-            <li><Link href="/terms-of-service">Términos y Condiciones</Link></li>
-            <li><Link href="/cookies-policy">Política de Cookies</Link></li>
+            <li><Link href="/aviso-legal">Aviso Legal</Link></li>
+            <li><Link href="/cancelacion-reembolso">Política de Cancelación y Reembolso</Link></li>
+            <li><Link href="/politica-cookies">Política de Cookies</Link></li>
+            <li><Link href="/politica-privacidad">Política de Privacidad</Link></li>
           </ul>
         </div>
+
       </div>
 
       {/* Copyright */}
