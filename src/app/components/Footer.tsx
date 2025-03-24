@@ -34,6 +34,7 @@ export default function Footer() {
 
         {/* Links legales */}
         <div className={styles.footerLinks}>
+<<<<<<< HEAD
   <ul>
     <li>
       <Link href="/aviso-legal" target="_blank" rel="noopener noreferrer">
@@ -58,6 +59,15 @@ export default function Footer() {
   </ul>
 </div>
 
+=======
+          <ul>
+            <li><Link href="/aviso-legal">Aviso Legal</Link></li>
+            <li><Link href="/cancelacion-reembolso">Política de Cancelación y Reembolso</Link></li>
+            <li><Link href="/politica-cookies">Política de Cookies</Link></li>
+            <li><Link href="/politica-privacidad">Política de Privacidad</Link></li>
+          </ul>
+        </div>
+>>>>>>> fbe9ff9a76e1bf308f547dbc97cc47e7500fdc80
 
       </div>
 
