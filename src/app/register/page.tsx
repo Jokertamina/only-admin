@@ -9,7 +9,6 @@ import Link from "next/link";
 import styles from "../styles/RegisterPage.module.css";
 
 export default function RegisterPage() {
-  const router = useRouter();
 
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [domicilio, setDomicilio] = useState("");
