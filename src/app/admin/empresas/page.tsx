@@ -335,7 +335,7 @@ export default function EmpresasPage() {
             onConfirm: () => {
               setModalData(null);
               auth.signOut().then(() => {
-                window.location.href = "/login"; 
+                window.location.href = "/"; 
               });
             },
           });
