@@ -1,5 +1,3 @@
-//src/app/admin/empresas/page.tsx
-
 "use client"; // Indica que este componente usa hooks en Next.js 13
 
 import { useEffect, useState } from "react";
@@ -19,10 +17,8 @@ import styles from "../../styles/EmpresasPage.module.css";
 // Importamos funciones de Firebase Functions (SDK de cliente)
 import { getFunctions, httpsCallable } from "firebase/functions";
 
-// Definimos un tipo para el plan
 type PlanType = "SIN_PLAN" | "BASICO" | "PREMIUM";
 
-// Interfaz para datos relevantes de la suscripción
 interface SubscriptionData {
   renewalDate?: string;
   expiryDate?: string;
@@ -40,7 +36,6 @@ interface Empresa {
   subscriptionData?: SubscriptionData;
 }
 
-// Componente Modal Personalizado
 interface CustomModalProps {
   isOpen: boolean;
   title?: string;
@@ -90,10 +85,8 @@ export default function EmpresasPage() {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
 
-  // Datos editables (para edición)
   const [formData, setFormData] = useState<Partial<Empresa>>({});
 
-  // Para registrar nueva empresa
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [newEmpresaData, setNewEmpresaData] = useState({
     nombre: "",
@@ -102,10 +95,8 @@ export default function EmpresasPage() {
     contactPhone: "",
   });
 
-  // Referencia al doc de "Users"
   const [userDocId, setUserDocId] = useState<string | null>(null);
 
-  // Estado para el Modal
   const [modalData, setModalData] = useState<{
     isOpen: boolean;
     type: "alert" | "confirm";
@@ -322,12 +313,19 @@ export default function EmpresasPage() {
       onConfirm: async () => {
         setModalData(null);
         try {
-          // Inicializamos funciones y llamamos a la callable function
+          // Si hay una suscripción activa, invocamos la eliminación de la suscripción
+          if (empresa?.subscriptionId) {
+            await fetch("/api/subscription-deleted", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
+            });
+          }
+          // Llamamos a la función callable para eliminar la cuenta
           const functions = getFunctions(app);
           const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
           const result = await deleteUserAccount({});
           console.log("deleteUserAccount result:", result);
-
           setModalData({
             isOpen: true,
             type: "alert",
@@ -336,7 +334,6 @@ export default function EmpresasPage() {
               "Se ha eliminado tu cuenta y todos los datos asociados. Se cerrará tu sesión automáticamente.",
             onConfirm: () => {
               setModalData(null);
-              // Normalmente, aquí forzaríamos un signOut() y redirección
               auth.signOut().then(() => {
                 window.location.href = "/login"; 
               });
@@ -369,8 +366,6 @@ export default function EmpresasPage() {
     return (
       <main className={styles["empresas-container"]}>
         <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
-
-        {/* Si no hay empresa, mostramos o no el formulario según el estado */}
         {!showRegisterForm ? (
           <div>
             <p>No se encontró la empresa asociada a este usuario.</p>
@@ -393,9 +388,7 @@ export default function EmpresasPage() {
                 type="text"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.nombre}
-                onChange={(e) =>
-                  handleNewEmpresaChange("nombre", e.target.value)
-                }
+                onChange={(e) => handleNewEmpresaChange("nombre", e.target.value)}
               />
             </div>
             <div className={styles["empresas-input-group"]}>
@@ -407,9 +400,7 @@ export default function EmpresasPage() {
                 type="text"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.domicilio}
-                onChange={(e) =>
-                  handleNewEmpresaChange("domicilio", e.target.value)
-                }
+                onChange={(e) => handleNewEmpresaChange("domicilio", e.target.value)}
               />
             </div>
             <div className={styles["empresas-input-group"]}>
@@ -421,9 +412,7 @@ export default function EmpresasPage() {
                 type="text"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.nif}
-                onChange={(e) =>
-                  handleNewEmpresaChange("nif", e.target.value)
-                }
+                onChange={(e) => handleNewEmpresaChange("nif", e.target.value)}
               />
             </div>
             <div className={styles["empresas-input-group"]}>
@@ -435,16 +424,11 @@ export default function EmpresasPage() {
                 type="tel"
                 className={styles["empresas-input"]}
                 value={newEmpresaData.contactPhone}
-                onChange={(e) =>
-                  handleNewEmpresaChange("contactPhone", e.target.value)
-                }
+                onChange={(e) => handleNewEmpresaChange("contactPhone", e.target.value)}
               />
             </div>
             <div className={styles["empresas-btn-group"]}>
-              <button
-                onClick={handleCreateNewEmpresa}
-                className={styles["empresas-btn-save"]}
-              >
+              <button onClick={handleCreateNewEmpresa} className={styles["empresas-btn-save"]}>
                 Crear Empresa
               </button>
               <button
@@ -460,9 +444,6 @@ export default function EmpresasPage() {
     );
   }
 
-  // ==========================
-  //  Función auxiliar
-  // ==========================
   const getPlanLabel = (plan: PlanType | undefined) => {
     switch (plan) {
       case "BASICO":
@@ -474,9 +455,6 @@ export default function EmpresasPage() {
     }
   };
 
-  // ==========================
-  //  Render Empresa
-  // ==========================
   return (
     <main className={styles["empresas-container"]}>
       <h1 className={styles["empresas-title"]}>Mi Empresa</h1>
@@ -578,7 +556,6 @@ export default function EmpresasPage() {
         </section>
       )}
 
-      {/* Si existe información de la suscripción */}
       {empresa.subscriptionData && (
         <div className={styles["subscription-info"]}>
           <h2>Información de Suscripción</h2>
@@ -598,7 +575,6 @@ export default function EmpresasPage() {
             <strong>Estado:</strong> {empresa.subscriptionData.status || "N/A"}
           </p>
 
-          {/* Botón para cancelar suscripción */}
           <div className={styles["empresas-subscription-container"]}>
             <button
               className={styles["empresas-btn-cancel-subscription"]}
@@ -610,7 +586,6 @@ export default function EmpresasPage() {
         </div>
       )}
 
-      {/* Botón para ELIMINAR CUENTA y DATOS */}
       <div className={styles["empresas-delete-container"]}>
         <button
           className={styles["empresas-btn-delete-account"]}
@@ -620,7 +595,6 @@ export default function EmpresasPage() {
         </button>
       </div>
 
-      {/* Modal de Confirmación/Alerta */}
       {modalData && modalData.isOpen && (
         <CustomModal
           isOpen={modalData.isOpen}

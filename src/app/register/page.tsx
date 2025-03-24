@@ -155,7 +155,7 @@ export default function RegisterPage() {
         console.warn("[Registro] empresaId no detectado tras varios intentos.");
       }
 
-      router.push("/admin");
+      window.location.href = "/admin";
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);

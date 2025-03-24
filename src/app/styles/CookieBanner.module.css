@@ -1,0 +1,114 @@
+
+
+.cookieBanner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--gradient-bg);
+  color: var(--color-text-main);
+  padding: 20px;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 -2px 8px rgba(43, 46, 61, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.cookieBanner p {
+  font-size: 16px;
+  line-height: 1.4;
+  margin-bottom: 15px;
+  max-width: 800px;
+}
+
+.cookieBanner a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cookieBanner a:hover {
+  text-decoration: underline;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.buttons button {
+  cursor: pointer;
+  background-color: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.buttons button:hover {
+  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+}
+
+.buttons button:nth-child(2) {
+  background-color: var(--color-danger);
+}
+
+.buttons button:nth-child(2):hover {
+  background-color: var(--color-secondary);
+}
+
+.buttons button:nth-child(3) {
+  background-color: var(--color-accent);
+}
+
+.buttons button:nth-child(3):hover {
+  background-color: var(--color-secondary);
+}
+
+/* Full responsive */
+@media (max-width: 768px) {
+  .cookieBanner {
+    padding: 15px 10px;
+  }
+
+  .cookieBanner p {
+    font-size: 14px;
+  }
+
+  .buttons button {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 200px;
+    padding: 8px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cookieBanner {
+    padding: 10px;
+  }
+
+  .cookieBanner p {
+    font-size: 13px;
+  }
+
+  .buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .buttons button {
+    width: 100%;
+    padding: 8px;
+    font-size: 13px;
+  }
+}
