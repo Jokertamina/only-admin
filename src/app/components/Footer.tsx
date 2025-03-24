@@ -13,8 +13,8 @@ export default function Footer() {
               <Image
                 src="/images/logo-nombre.svg"
                 alt="Symcrox Logo"
-                width={180} // Ajustado
-                height={60} // Ajustado
+                width={180}
+                height={60}
                 priority
                 className={styles["logo-img"]}
               />
@@ -34,41 +34,45 @@ export default function Footer() {
 
         {/* Links legales */}
         <div className={styles.footerLinks}>
-<<<<<<< HEAD
-  <ul>
-    <li>
-      <Link href="/aviso-legal" target="_blank" rel="noopener noreferrer">
-        Aviso Legal
-      </Link>
-    </li>
-    <li>
-      <Link href="/cancelacion-reembolso" target="_blank" rel="noopener noreferrer">
-        Política de Cancelación y Reembolso
-      </Link>
-    </li>
-    <li>
-      <Link href="/politica-cookies" target="_blank" rel="noopener noreferrer">
-        Política de Cookies
-      </Link>
-    </li>
-    <li>
-      <Link href="/politica-privacidad" target="_blank" rel="noopener noreferrer">
-        Política de Privacidad
-      </Link>
-    </li>
-  </ul>
-</div>
-
-=======
           <ul>
-            <li><Link href="/aviso-legal">Aviso Legal</Link></li>
-            <li><Link href="/cancelacion-reembolso">Política de Cancelación y Reembolso</Link></li>
-            <li><Link href="/politica-cookies">Política de Cookies</Link></li>
-            <li><Link href="/politica-privacidad">Política de Privacidad</Link></li>
+            <li>
+              <Link
+                href="/aviso-legal"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Aviso Legal
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/cancelacion-reembolso"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Política de Cancelación y Reembolso
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/politica-cookies"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Política de Cookies
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/politica-privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Política de Privacidad
+              </Link>
+            </li>
           </ul>
         </div>
->>>>>>> fbe9ff9a76e1bf308f547dbc97cc47e7500fdc80
-
       </div>
 
       {/* Copyright */}
