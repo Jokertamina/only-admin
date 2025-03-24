@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     // - Se crea la suscripción de 55€/mes, con trial de 30 días (la cuota inicia al segundo mes)
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      success_url: "https://tu-dominio.com/payment-success",
-      cancel_url: "https://tu-dominio.com/payment-cancel",
+      success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+      cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
       line_items: [
         {
           price_data: {
