@@ -1,160 +1,124 @@
 // src/app/api/stripe-create/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { adminDb } from "../../../lib/firebaseAdminConfig"; // Ajusta la ruta según tu proyecto
+import { adminDb } from "../../../lib/firebaseAdminConfig";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
 });
 
-// Función principal que maneja la petición POST
+const priceIds: Record<'BASICO' | 'PREMIUM', string> = {
+  BASICO: process.env.STRIPE_BASIC_PRICE_ID!,
+  PREMIUM: process.env.STRIPE_PREMIUM_PRICE_ID!,
+};
+
 export async function POST(req: NextRequest) {
-  console.log("[stripe-create] Método recibido:", req.method);
+  const { empresaId, plan } = (await req.json()) as { empresaId: string; plan: 'BASICO' | 'PREMIUM' };
 
-  if (req.method !== "POST") {
-    return NextResponse.json("Method Not Allowed", { status: 405 });
+  if (!empresaId || !plan || !['BASICO', 'PREMIUM'].includes(plan)) {
+    return NextResponse.json({ error: "Parámetros inválidos." }, { status: 400 });
   }
 
-  let body: { plan?: string; empresaId?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json("Invalid JSON", { status: 400 });
+  const empresaRef = adminDb.collection("Empresas").doc(empresaId);
+  const empresaDoc = await empresaRef.get();
+
+  if (!empresaDoc.exists) {
+    return NextResponse.json({ error: "Empresa no encontrada." }, { status: 404 });
   }
 
-  const { plan, empresaId } = body;
-  if (!plan || !empresaId) {
-    return NextResponse.json("Missing required fields", { status: 400 });
+  const empresaData = empresaDoc.data()!;
+  let customerId = empresaData.stripeCustomerId;
+
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      metadata: { empresaId },
+    });
+    customerId = customer.id;
+    await empresaRef.update({ stripeCustomerId: customerId });
   }
 
-  try {
-    // 1) Verificamos si la empresa existe
-    const empresaRef = adminDb.collection("Empresas").doc(empresaId);
-    const empresaSnap = await empresaRef.get();
-    if (!empresaSnap.exists) {
-      return NextResponse.json("Empresa no encontrada", { status: 404 });
-    }
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 1,
+  });
 
-    const data = empresaSnap.data() || {};
-    let stripeCustomerId = data.stripeCustomerId;
-    const currentSubscriptionId = data.subscriptionId;
+  const activeSubscription = subscriptions.data.find((sub) =>
+    ["active", "trialing"].includes(sub.status)
+  );
 
-    // 2) Determinamos los Price IDs
-    const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID!;
-    const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID!;
-    const newPriceId = plan === "PREMIUM" ? premiumPriceId : basicPriceId;
+  if (!activeSubscription) {
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      payment_method_types: ["card"],
+      line_items: [{ price: priceIds[plan], quantity: 1 }],
+      metadata: { empresaId, plan },
+      success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
+      cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
 
-    // 3) Creamos el cliente en Stripe si no existe
-    if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: data.email || undefined,
-        metadata: { empresaId },
-      });
-      stripeCustomerId = customer.id;
-      await empresaRef.update({ stripeCustomerId });
-    }
+    });
 
-    // 4) Si no hay suscripción previa (plan nuevo)
-    if (!currentSubscriptionId) {
-      // Creamos Checkout normal (sin trial, a menos que quieras dárselo también a un nuevo plan)
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
-        customer: stripeCustomerId,
-        line_items: [{ price: newPriceId, quantity: 1 }],
-        metadata: { empresaId, plan },
-      });
-      console.log("[stripe-create] Sesión creada (nueva suscripción):", session.id);
-      // El webhook se encargará de setear el plan en la DB tras el pago
-      return NextResponse.json({
-        url: session.url,
-        message: "Sesión de pago creada. Completa el pago para activar tu plan.",
-      });
-    }
+    return NextResponse.json({ url: session.url });
+  }
 
-    // 5) Hay suscripción activa (Premium)
-    const currentSubscription = await stripe.subscriptions.retrieve(currentSubscriptionId);
-    const currentPriceId = currentSubscription.items.data[0]?.price?.id;
+  const currentPlanPriceId = activeSubscription.items.data[0].price.id;
 
-    // Si ya está en el mismo plan
-    if (currentPriceId === newPriceId) {
-      return NextResponse.json({ message: "Ya estás en el plan solicitado" });
-    }
+  if (currentPlanPriceId === priceIds[plan]) {
+    return NextResponse.json({ message: `Ya tienes el plan ${plan}.` });
+  }
 
-    // --- UPGRADE (Básico → Premium)
-    if (plan === "PREMIUM") {
-      // Actualizamos la suscripción al momento
-      const updatedSubscription = await stripe.subscriptions.update(currentSubscriptionId, {
-        proration_behavior: "always_invoice",
-        items: [
-          {
-            id: currentSubscription.items.data[0].id,
-            price: newPriceId,
-          },
-        ],
-      });
-      console.log("[stripe-create] Upgrade inmediato:", updatedSubscription.id);
+  if (plan === "PREMIUM") {
+    await stripe.subscriptions.update(activeSubscription.id, {
+      cancel_at_period_end: false,
+      proration_behavior: "create_prorations",
+      items: [{ id: activeSubscription.items.data[0].id, price: priceIds.PREMIUM }],
+      metadata: { empresaId, plan: "PREMIUM" },
+    });
 
-      // Actualizamos plan= "PREMIUM" en DB (inmediato)
-      await empresaRef.update({
-        plan: "PREMIUM",
-        estado_plan: "PREMIUM",
-        subscriptionId: updatedSubscription.id,
-        downgradePending: false,
-      });
+    await empresaRef.update({ plan: "PREMIUM", pendingDowngrade: false });
 
-      return NextResponse.json({
-        message: "Plan actualizado a Premium de forma inmediata",
-      });
-    }
+    return NextResponse.json({ message: "Suscripción actualizada a PREMIUM exitosamente." });
+  }
 
-    // --- DOWNGRADE (Premium → Básico), con trial que finaliza el día que acaba Premium
-    if (plan === "BASICO") {
-      // 1) Cancelamos Premium al final del ciclo
-      await stripe.subscriptions.update(currentSubscriptionId, {
-        cancel_at_period_end: true,
-      });
-      console.log(
-        `[stripe-create] Suscripción Premium marcada para cancelar al final del ciclo: ${currentSubscriptionId}`
-      );
+  if (plan === "BASICO") {
+    const schedule = await stripe.subscriptionSchedules.create({
+      from_subscription: activeSubscription.id,
+    });
 
-      // 2) Creamos un Checkout Session para Básico con un trial que termina el mismo día
-      const periodEnd = currentSubscription.current_period_end; // un UNIX timestamp
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
-        customer: stripeCustomerId,
-        line_items: [{ price: basicPriceId, quantity: 1 }],
-        subscription_data: {
-          trial_end: periodEnd, // El trial durará hasta que acabe Premium
-          metadata: {
-            empresaId,
-            plan: "BASICO",
-          },
+    const currentPeriodEnd = activeSubscription.current_period_end;
+
+    await stripe.subscriptionSchedules.update(schedule.id, {
+      phases: [
+        {
+          items: [{ price: currentPlanPriceId, quantity: 1 }],
+          start_date: activeSubscription.current_period_start,
+          end_date: currentPeriodEnd,
         },
-      });
-      console.log("[stripe-create] Checkout con trial hasta:", periodEnd);
+        {
+          items: [{ price: priceIds.BASICO, quantity: 1 }],
+          start_date: currentPeriodEnd,
+        },
+      ],
+      metadata: { empresaId, downgrade: "true", plan: "BASICO" },
+    });
 
-      // 3) DB: plan sigue en PREMIUM, marcamos "downgradePending" si lo deseas
-      //   (Aunque en realidad, ya se está creando una sub en trial)
-      await empresaRef.update({
-        plan: "PREMIUM",           // sigue con Premium hasta que finalice
-        estado_plan: "PREMIUM",
-        downgradePending: true,    // para saber que hay un trial en marcha
-      });
+    await empresaRef.update({ pendingDowngrade: true });
 
-      return NextResponse.json({
-        url: session.url,
-        message:
-          "Se ha programado la cancelación de Premium y la creación de Básico en trial. Mantendrás Premium hasta el fin del ciclo, luego se activará Básico automáticamente.",
-      });
-    }
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      payment_method_types: ["card"],
+      line_items: [{ price: priceIds.BASICO, quantity: 1 }],
+      subscription_data: { trial_end: currentPeriodEnd },
+      metadata: { empresaId, downgrade: "true", currentSubscriptionId: activeSubscription.id, plan: "BASICO" },
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cancel`,
+    });
 
-    return NextResponse.json({ message: "Operación completada" });
-  } catch (error) {
-    console.error("[stripe-create] Error:", error);
-    return NextResponse.json("Internal Server Error", { status: 500 });
+    return NextResponse.json({ url: session.url });
   }
+
+  return NextResponse.json({ error: "Solicitud inválida." }, { status: 400 });
 }
