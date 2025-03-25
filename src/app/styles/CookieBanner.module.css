@@ -62,7 +62,7 @@
 }
 
 .buttons button:nth-child(2):hover {
-  background-color: var(--color-secondary);
+  background-color: #cc0d3a;
 }
 
 .buttons button:nth-child(3) {
