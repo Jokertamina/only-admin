@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig";
-import admin from 'firebase-admin';
+import admin from "firebase-admin";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
   }
 
-  const session = event.data.object as Stripe.Subscription | Stripe.Checkout.Session | Stripe.Invoice | Stripe.Charge;
+  const session = event.data.object as
+    | Stripe.Subscription
+    | Stripe.Checkout.Session
+    | Stripe.Invoice
+    | Stripe.Charge;
   const metadata = session.metadata || {};
   const empresaId = metadata.empresaId;
 
@@ -95,7 +99,7 @@ export async function POST(req: NextRequest) {
       if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
         await empresaRef.update({
           subscriptionStatus: "active",
-          failedPaymentsCount: 0
+          failedPaymentsCount: 0,
         });
         console.log(`💳 Pago exitoso (${invoice.billing_reason}) empresa ${empresaId}`);
       }
@@ -104,7 +108,7 @@ export async function POST(req: NextRequest) {
     case "invoice.payment_failed":
       await empresaRef.update({
         subscriptionStatus: "past_due",
-        failedPaymentsCount: admin.firestore.FieldValue.increment(1)
+        failedPaymentsCount: admin.firestore.FieldValue.increment(1),
       });
 
       const empresaSnap = await empresaRef.get();
@@ -127,60 +131,69 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "all"
-      });
-
-      const activeOrTrialSubscription = subscriptions.data.find((sub) =>
-        ["active", "trialing"].includes(sub.status)
-      );
-
-      if (activeOrTrialSubscription) {
-        const newPlanPriceId = activeOrTrialSubscription.items.data[0].price.id;
-        let newPlan = "SIN PLAN";
-
-        if (newPlanPriceId === process.env.STRIPE_BASIC_PRICE_ID) newPlan = "BASICO";
-        else if (newPlanPriceId === process.env.STRIPE_PREMIUM_PRICE_ID) newPlan = "PREMIUM";
-
-        await empresaRef.update({
-          subscriptionId: activeOrTrialSubscription.id,
-          plan: newPlan,
-          subscriptionStatus: activeOrTrialSubscription.status,
-          subscriptionCreated: activeOrTrialSubscription.created,
-          currentPeriodStart: activeOrTrialSubscription.current_period_start,
-          currentPeriodEnd: activeOrTrialSubscription.current_period_end,
-          trialStart: activeOrTrialSubscription.trial_start || null,
-          trialEnd: activeOrTrialSubscription.trial_end || null,
-          cancelAtPeriodEnd: activeOrTrialSubscription.cancel_at_period_end,
-          canceledAt: activeOrTrialSubscription.canceled_at || null,
-          endedAt: activeOrTrialSubscription.ended_at || null,
-          downgradePending: false
+      try {
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "all",
         });
 
-        console.warn(`🔄 Suscripción actualizada automáticamente a ${newPlan} tras cancelar anterior empresa ${empresaId}`);
-      } else {
-        await empresaRef.update({
-          subscriptionStatus: "canceled",
-          plan: "SIN PLAN",
-          subscriptionId: admin.firestore.FieldValue.delete(),
-          cancelAtPeriodEnd: false,
-          canceledAt: Math.floor(Date.now() / 1000),
-          endedAt: Math.floor(Date.now() / 1000),
-          downgradePending: false,
-          currentPeriodStart: null,
-          currentPeriodEnd: null,
-          trialStart: null,
-          trialEnd: null
-        });
+        const activeOrTrialSubscription = subscriptions.data.find((sub) =>
+          ["active", "trialing"].includes(sub.status)
+        );
 
-        console.warn(`🚫 Suscripción cancelada, sin otras activas para empresa ${empresaId}`);
+        if (activeOrTrialSubscription) {
+          const newPlanPriceId = activeOrTrialSubscription.items.data[0].price.id;
+          let newPlan = "SIN PLAN";
+
+          if (newPlanPriceId === process.env.STRIPE_BASIC_PRICE_ID) newPlan = "BASICO";
+          else if (newPlanPriceId === process.env.STRIPE_PREMIUM_PRICE_ID) newPlan = "PREMIUM";
+
+          await empresaRef.update({
+            subscriptionId: activeOrTrialSubscription.id,
+            plan: newPlan,
+            subscriptionStatus: activeOrTrialSubscription.status,
+            subscriptionCreated: activeOrTrialSubscription.created,
+            currentPeriodStart: activeOrTrialSubscription.current_period_start,
+            currentPeriodEnd: activeOrTrialSubscription.current_period_end,
+            trialStart: activeOrTrialSubscription.trial_start || null,
+            trialEnd: activeOrTrialSubscription.trial_end || null,
+            cancelAtPeriodEnd: activeOrTrialSubscription.cancel_at_period_end,
+            canceledAt: activeOrTrialSubscription.canceled_at || null,
+            endedAt: activeOrTrialSubscription.ended_at || null,
+            downgradePending: false,
+          });
+
+          console.warn(`🔄 Suscripción actualizada automáticamente a ${newPlan} tras cancelar anterior empresa ${empresaId}`);
+        } else {
+          console.warn(
+            `🚫 No se encontraron suscripciones activas para cliente: ${customerId}. Marcando como SIN PLAN.`
+          );
+
+          await empresaRef.update({
+            subscriptionStatus: "canceled",
+            plan: "SIN PLAN",
+            subscriptionId: admin.firestore.FieldValue.delete(),
+            cancelAtPeriodEnd: false,
+            canceledAt: Math.floor(Date.now() / 1000),
+            endedAt: Math.floor(Date.now() / 1000),
+            downgradePending: false,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            trialStart: null,
+            trialEnd: null,
+          });
+        }
+      } catch (error) {
+        console.error(
+          `⚠️ Error al procesar 'customer.subscription.deleted' para empresa ${empresaId}:`,
+          error
+        );
       }
       break;
 
     case "charge.refunded":
       await empresaRef.update({
-        subscriptionStatus: "refunded"
+        subscriptionStatus: "refunded",
       });
 
       console.warn(`💸 Pago reembolsado manualmente, empresa ${empresaId}. Revisa manualmente.`);
