@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Evento sin empresaId" });
   }
 
-  const empresaRef = adminDb.collection("empresas").doc(empresaId);
+  const empresaRef = adminDb.collection("Empresas").doc(empresaId);
 
   switch (event.type) {
     case "checkout.session.completed":

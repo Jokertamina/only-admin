@@ -120,6 +120,8 @@ export default function RegisterPage() {
         nif: trimmedNIF,
         contactPhone: trimmedContactPhone,
         plan: "SIN_PLAN",
+        subscriptionId: "",
+        status: "no_subscription",
         email: trimmedEmail,
       });
       const empresaId = docRef.id;
