@@ -38,9 +38,11 @@ export async function POST(req: NextRequest) {
   switch (event.type) {
     case "checkout.session.completed":
       if (metadata.downgrade === "true") {
-        await empresaRef.update({ pendingDowngrade: true });
+        // Confirmación de downgrade
+        await empresaRef.update({ downgradePending: true });
         console.log(`✅ Downgrade confirmado para empresa ${empresaId}`);
       } else {
+        // Nueva suscripción o cambio de plan
         const checkoutSession = session as Stripe.Checkout.Session;
         const subscriptionId = checkoutSession.subscription as string;
 
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
           canceledAt: subscription.canceled_at || null,
           endedAt: subscription.ended_at || null,
-          pendingDowngrade: false,
+          downgradePending: false,
           failedPaymentsCount: 0,
         });
 
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
         cancelAtPeriodEnd: subscriptionUpdated.cancel_at_period_end,
         canceledAt: subscriptionUpdated.canceled_at || null,
         endedAt: subscriptionUpdated.ended_at || null,
-        pendingDowngrade: false
+        downgradePending: false,
       });
 
       console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos empresa ${empresaId}`);
@@ -153,7 +155,7 @@ export async function POST(req: NextRequest) {
           cancelAtPeriodEnd: activeOrTrialSubscription.cancel_at_period_end,
           canceledAt: activeOrTrialSubscription.canceled_at || null,
           endedAt: activeOrTrialSubscription.ended_at || null,
-          pendingDowngrade: false
+          downgradePending: false
         });
 
         console.warn(`🔄 Suscripción actualizada automáticamente a ${newPlan} tras cancelar anterior empresa ${empresaId}`);
@@ -165,7 +167,7 @@ export async function POST(req: NextRequest) {
           cancelAtPeriodEnd: false,
           canceledAt: Math.floor(Date.now() / 1000),
           endedAt: Math.floor(Date.now() / 1000),
-          pendingDowngrade: false,
+          downgradePending: false,
           currentPeriodStart: null,
           currentPeriodEnd: null,
           trialStart: null,
