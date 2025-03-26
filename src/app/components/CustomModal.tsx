@@ -9,6 +9,7 @@ interface CustomModalProps {
   type: "alert" | "confirm";
   onConfirm: () => void;
   onCancel?: () => void;
+  children?: React.ReactNode;
 }
 
 export default function CustomModal({
@@ -18,6 +19,7 @@ export default function CustomModal({
   type,
   onConfirm,
   onCancel,
+  children,
 }: CustomModalProps) {
   if (!isOpen) return null;
   return (
@@ -25,6 +27,8 @@ export default function CustomModal({
       <div className={styles.modalContainer}>
         {title && <h2 className={styles.modalTitle}>{title}</h2>}
         <p className={styles.modalMessage}>{message}</p>
+        {/* Renderizamos los children para permitir contenido extra, como un input */}
+        {children}
         <div className={styles.modalButtons}>
           {type === "confirm" ? (
             <>
