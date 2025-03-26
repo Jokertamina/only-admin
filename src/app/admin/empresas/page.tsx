@@ -301,59 +301,62 @@ export default function EmpresasPage() {
   };
 
   // ==========================
-  //  ELIMINAR CUENTA Y DATOS
-  // ==========================
-  const handleDeleteAccount = () => {
-    setModalData({
-      isOpen: true,
-      type: "confirm",
-      title: "Eliminar cuenta",
-      message:
-        "Esta acción borrará tu cuenta, tu empresa y todos los datos relacionados (empleados, obras, fichajes). ¿Estás seguro?",
-      onConfirm: async () => {
-        setModalData(null);
-        try {
-          // Si hay una suscripción activa, invocamos la eliminación de la suscripción
-          if (empresa?.subscriptionId) {
-            await fetch("/api/subscription-deleted", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
-            });
-          }
-          // Llamamos a la función callable para eliminar la cuenta
-          const functions = getFunctions(app);
-          const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
-          const result = await deleteUserAccount({});
-          console.log("deleteUserAccount result:", result);
-          setModalData({
-            isOpen: true,
-            type: "alert",
-            title: "Cuenta eliminada",
-            message:
-              "Se ha eliminado tu cuenta y todos los datos asociados. Se cerrará tu sesión automáticamente.",
-            onConfirm: () => {
-              setModalData(null);
-              auth.signOut().then(() => {
-                window.location.href = "/"; 
-              });
-            },
+//  ELIMINAR CUENTA Y DATOS
+// ==========================
+const handleDeleteAccount = () => {
+  setModalData({
+    isOpen: true,
+    type: "confirm",
+    title: "Eliminar cuenta",
+    message:
+      "Esta acción borrará tu cuenta, tu empresa y todos los datos relacionados (empleados, obras, fichajes). ¿Estás seguro?",
+    onConfirm: async () => {
+      setModalData(null);
+      try {
+        // Si hay una suscripción activa, invocamos la eliminación de la suscripción
+        if (empresa?.subscriptionId) {
+          await fetch("/api/subscription-deleted", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
           });
-        } catch (error: unknown) {
-          console.error("Error al eliminar la cuenta:", error);
-          setModalData({
-            isOpen: true,
-            type: "alert",
-            title: "Error",
-            message:
-              "Ocurrió un error al eliminar la cuenta. Revisa la consola o inténtalo más tarde.",
-            onConfirm: () => setModalData(null),
-          });
+          // Esperamos unos segundos para que Stripe y el webhook procesen la cancelación
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
-      },
-      onCancel: () => setModalData(null),
-    });
-  };
+        // Llamamos a la función callable para eliminar la cuenta
+        const functions = getFunctions(app);
+        const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
+        const result = await deleteUserAccount({});
+        console.log("deleteUserAccount result:", result);
+        setModalData({
+          isOpen: true,
+          type: "alert",
+          title: "Cuenta eliminada",
+          message:
+            "Se ha eliminado tu cuenta y todos los datos asociados. Se cerrará tu sesión automáticamente.",
+          onConfirm: () => {
+            setModalData(null);
+            auth.signOut().then(() => {
+              window.location.href = "/";
+            });
+          },
+        });
+      } catch (error: unknown) {
+        console.error("Error al eliminar la cuenta:", error);
+        setModalData({
+          isOpen: true,
+          type: "alert",
+          title: "Error",
+          message:
+            "Ocurrió un error al eliminar la cuenta. Revisa la consola o inténtalo más tarde.",
+          onConfirm: () => setModalData(null),
+        });
+      }
+    },
+    onCancel: () => setModalData(null),
+  });
+};
+
 
   // ==========================
   //  Loading y Sin Empresa
