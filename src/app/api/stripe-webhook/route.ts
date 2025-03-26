@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         const empresaSnap = await empresaRef.get();
         const empresaData = empresaSnap.data();
         const email = empresaData?.email || "";
-        await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || ""}/api/notify-company-event`, {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/notify-company-event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
         const empresaSnap = await empresaRef.get();
         const empresaData = empresaSnap.data();
         const email = empresaData?.email || "";
-        await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || ""}/api/notify-company-event`, {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/notify-company-event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
         const empresaSnap = await empresaRef.get();
         const empresaData = empresaSnap.data();
         const email = empresaData?.email || "";
-        await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || ""}/api/notify-company-event`, {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/notify-company-event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
