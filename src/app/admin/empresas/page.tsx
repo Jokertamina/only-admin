@@ -568,12 +568,7 @@ const handleDeleteAccount = () => {
               ? new Date(empresa.subscriptionData.renewalDate).toLocaleDateString()
               : "N/A"}
           </p>
-          <p>
-            <strong>Fecha de Expiración:</strong>{" "}
-            {empresa.subscriptionData.expiryDate
-              ? new Date(empresa.subscriptionData.expiryDate).toLocaleDateString()
-              : "N/A"}
-          </p>
+          
           <p>
             <strong>Estado:</strong> {empresa.subscriptionData.status || "N/A"}
           </p>
