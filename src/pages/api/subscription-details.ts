@@ -1,18 +1,45 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import Stripe from "stripe";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-02-24.acacia",
+});
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { subscriptionId } = req.query;
-  if (!subscriptionId) {
-    return res.status(400).json({ success: false, message: "Falta subscriptionId" });
+  if (!subscriptionId || typeof subscriptionId !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "Falta subscriptionId o es inválido",
+    });
   }
 
-  // Aquí deberías implementar la lógica real para obtener los datos de la suscripción.
-  // A continuación se muestra un ejemplo con datos simulados.
-  const subscriptionData = {
-    renewalDate: new Date().toISOString(),
-    expiryDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString(),
-    status: "active",
-  };
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  res.status(200).json({ success: true, subscriptionData });
+    // Usamos current_period_end como fecha de renovación y, si hay trial, trial_end como fecha de expiración; 
+    // esto lo puedes ajustar según tu lógica.
+    const renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
+    const expiryDate = subscription.trial_end
+      ? new Date(subscription.trial_end * 1000).toISOString()
+      : renewalDate;
+
+    const subscriptionData = {
+      renewalDate,
+      expiryDate,
+      status: subscription.status,
+    };
+
+    res.status(200).json({ success: true, subscriptionData });
+  } catch (error: any) {
+    console.error("Error al obtener datos de la suscripción:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al obtener los datos de la suscripción",
+      error: error.message,
+    });
+  }
 }
