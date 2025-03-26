@@ -84,18 +84,14 @@ const PricingPage: React.FC = () => {
       });
       if (!res.ok) throw new Error("La petición falló");
       const data = await res.json();
-      // En upgrade, no se genera sesión de pago, se actualiza automáticamente.
-      if (data.message) {
-        setModalMessage(data.message);
-      } else {
-        setModalMessage("Plan actualizado a Premium de forma inmediata.");
-      }
+      console.log("Upgrade exitoso:", data.message || "Plan actualizado a Premium de forma inmediata");
+      // Aquí puedes, por ejemplo, mostrar una notificación o actualizar el estado global
     } catch (error) {
       console.error("Error al actualizar a Premium:", error);
-      setModalMessage("Hubo un problema al actualizar el plan. Inténtalo de nuevo.");
+      console.error("Hubo un problema al actualizar el plan. Inténtalo de nuevo.");
     }
     setConfirmUpgrade(false);
-    setShowModal(true);
+    // No volvemos a mostrar el modal aquí para que no se vea doble
   };
 
   // Función para el plan personalizado
@@ -209,22 +205,21 @@ const PricingPage: React.FC = () => {
       </div>
 
       <CustomModal
-  isOpen={showModal}
-  title="Confirmación"
-  message={modalMessage}
-  type="confirm"
-  onConfirm={() => {
-    setShowModal(false);
-    if (confirmUpgrade) {
-      handleUpgrade();
-    }
-  }}
-  onCancel={() => {
-    setShowModal(false);
-    setConfirmUpgrade(false);
-  }}
-/>
-
+        isOpen={showModal}
+        title="Confirmación"
+        message={modalMessage}
+        type="confirm"
+        onConfirm={() => {
+          setShowModal(false);
+          if (confirmUpgrade) {
+            handleUpgrade();
+          }
+        }}
+        onCancel={() => {
+          setShowModal(false);
+          setConfirmUpgrade(false);
+        }}
+      />
     </main>
   );
 };
