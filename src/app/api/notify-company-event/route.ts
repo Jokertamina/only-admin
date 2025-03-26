@@ -56,9 +56,10 @@ export async function POST(request: NextRequest) {
     });
 
     const telegramResponse = await res.json();
-    if (!telegramResponse.ok) {
-      throw new Error("Error al enviar notificación a Telegram");
-    }
+console.log("Respuesta completa de Telegram:", telegramResponse);
+if (!telegramResponse.ok) {
+  throw new Error("Error al enviar notificación a Telegram");
+}
 
     return NextResponse.json({ success: true });
   } catch (error) {
