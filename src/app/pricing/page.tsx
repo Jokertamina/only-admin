@@ -191,7 +191,7 @@ const PricingPage: React.FC = () => {
         {/* Card Premium */}
         <PricingCard
           plan="Premium"
-          price="€29,99/mes"
+          price="€34,99/mes"
           features={[
             "Acceso ilimitado a funciones",
             "Registros de empleados ilimitados",
