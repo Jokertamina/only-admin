@@ -314,6 +314,16 @@ const handleDeleteAccount = () => {
     onConfirm: async () => {
       setModalData(null);
       try {
+        // Capturamos la info de la empresa antes de eliminarla
+        const empresaInfo = empresa
+          ? {
+              id: empresa.id,
+              nombre: empresa.nombre,
+              email: empresa.email,
+              plan: empresa.plan,
+            }
+          : null;
+
         // Si hay una suscripción activa, invocamos la eliminación de la suscripción
         if (empresa?.subscriptionId) {
           await fetch("/api/subscription-deleted", {
@@ -330,17 +340,17 @@ const handleDeleteAccount = () => {
         const result = await deleteUserAccount({});
         console.log("deleteUserAccount result:", result);
 
-        // Notificamos a Telegram que la cuenta se ha eliminado completamente.
-        if (empresa) {
+        // Notificamos a Telegram que la cuenta se ha eliminado completamente, usando la info capturada
+        if (empresaInfo) {
           await fetch("/api/notify-company-event", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               eventType: "delete",
-              empresaId: empresa.id,
-              nombre: empresa.nombre, // Se incluye el nombre de la empresa
-              email: empresa.email,
-              plan: empresa.plan,
+              empresaId: empresaInfo.id,
+              nombre: empresaInfo.nombre,
+              email: empresaInfo.email,
+              plan: empresaInfo.plan,
             }),
           });
         }
@@ -373,6 +383,7 @@ const handleDeleteAccount = () => {
     onCancel: () => setModalData(null),
   });
 };
+
 
 
 
