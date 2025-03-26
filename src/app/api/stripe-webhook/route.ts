@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
     | Stripe.Checkout.Session
     | Stripe.Invoice
     | Stripe.Charge;
-
   // Intentamos leer los metadatos
   const metadata = session.metadata || {};
   let empresaId = metadata.empresaId;
@@ -63,7 +62,7 @@ export async function POST(req: NextRequest) {
         await empresaRef.update({ downgradePending: true });
         console.log(`✅ Downgrade confirmado para empresa ${empresaId}`);
       } else {
-        // Nueva suscripción (contratación de plan)
+        // Nueva suscripción o cambio de plan
         const checkoutSession = session as Stripe.Checkout.Session;
         const subscriptionId = checkoutSession.subscription as string;
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -84,22 +83,20 @@ export async function POST(req: NextRequest) {
           failedPaymentsCount: 0,
         });
 
-        console.log(`✅ Nueva suscripción ${metadata.plan} para empresa ${empresaId}`);
+        console.log(
+          `✅ Nueva suscripción ${metadata.plan} con detalles completos para empresa ${empresaId}`
+        );
 
-        // Obtenemos la info de la empresa (para extraer nombre y email)
+        // Notificamos el contrato (evento "contract")
         const empresaSnap = await empresaRef.get();
-        const empresaData = empresaSnap.data() || {};
-        const nombre = empresaData.nombre || "Desconocida";
-        const email = empresaData.email || "Sin email";
-
-        // Notificamos contratación (evento "contract")
+        const empresaData = empresaSnap.data();
+        const email = empresaData?.email || "";
         await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/notify-company-event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             eventType: "contract",
             empresaId,
-            nombre,
             email,
             plan: metadata.plan,
             subscriptionId,
@@ -108,18 +105,15 @@ export async function POST(req: NextRequest) {
       }
       break;
 
-    /*
-    // Si en el futuro quieres notificar "cambio de plan", descomenta este bloque:
-    case "customer.subscription.updated": {
+    case "customer.subscription.updated":
       const subscriptionUpdated = session as Stripe.Subscription;
       const priceId = subscriptionUpdated.items.data[0].price.id;
       let updatedPlan = "SIN PLAN";
 
-      if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) {
+      if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID)
         updatedPlan = "PREMIUM";
-      } else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) {
+      else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID)
         updatedPlan = "BASICO";
-      }
 
       const now = Math.floor(Date.now() / 1000);
       const updateObj = {
@@ -139,31 +133,14 @@ export async function POST(req: NextRequest) {
       };
 
       await empresaRef.update(updateObj);
-      console.log(`🔄 Suscripción sincronizada a ${updatedPlan} para empresa ${empresaId}`);
 
-      // Notificamos cambio de plan (evento "change")
-      const empresaSnap = await empresaRef.get();
-      const empresaData = empresaSnap.data() || {};
-      const nombre = empresaData.nombre || "Desconocida";
-      const email = empresaData.email || "Sin email";
-
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/notify-company-event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventType: "change",
-          empresaId,
-          nombre,
-          email,
-          plan: updatedPlan,
-          subscriptionId: subscriptionUpdated.id,
-        }),
-      });
+      console.log(
+        `🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos para empresa ${empresaId}`
+      );
+      
       break;
-    }
-    */
 
-    case "invoice.payment_succeeded": {
+    case "invoice.payment_succeeded":
       const invoice = session as Stripe.Invoice;
       if (
         invoice.billing_reason &&
@@ -176,9 +153,8 @@ export async function POST(req: NextRequest) {
         console.log(`💳 Pago exitoso (${invoice.billing_reason}) para empresa ${empresaId}`);
       }
       break;
-    }
 
-    case "invoice.payment_failed": {
+    case "invoice.payment_failed":
       await empresaRef.update({
         subscriptionStatus: "past_due",
         failedPaymentsCount: admin.firestore.FieldValue.increment(1),
@@ -196,15 +172,12 @@ export async function POST(req: NextRequest) {
         );
       } else {
         console.warn(
-          `❌ Fallo en pago para empresa ${empresaId}, intento ${
-            empresaData?.failedPaymentsCount || 1
-          }`
+          `❌ Fallo en pago para empresa ${empresaId}, intento ${empresaData?.failedPaymentsCount || 1}`
         );
       }
       break;
-    }
 
-    case "customer.subscription.deleted": {
+    case "customer.subscription.deleted":
       const subscriptionDeleted = session as Stripe.Subscription;
       const customerId = subscriptionDeleted.customer;
 
@@ -242,7 +215,7 @@ export async function POST(req: NextRequest) {
           });
 
           console.warn(
-            `🔄 Suscripción actualizada a BASICO tras cancelar premium para empresa ${empresaId}`
+            `🔄 Suscripción actualizada automáticamente a BASICO tras cancelar premium para empresa ${empresaId}`
           );
         } else {
           console.warn(
@@ -266,17 +239,14 @@ export async function POST(req: NextRequest) {
 
         // Notificamos eliminación (evento "delete")
         const empresaSnap = await empresaRef.get();
-        const empresaData = empresaSnap.data() || {};
-        const email = empresaData.email || "Sin email";
-        const nombre = empresaData.nombre || "Desconocida";
-
+        const empresaData = empresaSnap.data();
+        const email = empresaData?.email || "";
         await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/notify-company-event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             eventType: "delete",
             empresaId,
-            nombre,
             email,
             plan: "SIN_PLAN",
             subscriptionId: subscriptionDeleted.id,
@@ -289,16 +259,14 @@ export async function POST(req: NextRequest) {
         );
       }
       break;
-    }
 
-    case "charge.refunded": {
+    case "charge.refunded":
       await empresaRef.update({
         subscriptionStatus: "refunded",
       });
 
       console.warn(`💸 Pago reembolsado manualmente para empresa ${empresaId}. Revisa manualmente.`);
       break;
-    }
 
     default:
       console.warn(`⚠️ Evento no manejado: ${event.type}`);
