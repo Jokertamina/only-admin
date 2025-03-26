@@ -13,6 +13,8 @@ const PricingPage: React.FC = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
+  // Nuevo estado para saber si se requiere confirmar upgrade (Básico → Premium)
+  const [confirmUpgrade, setConfirmUpgrade] = useState(false);
 
   // Obtenemos el plan actual o "SIN_PLAN" si no existe
   const currentPlan = empresaData?.plan || "SIN_PLAN";
@@ -46,6 +48,16 @@ const PricingPage: React.FC = () => {
       return;
     }
 
+    // Si se intenta pasar de BASICO a PREMIUM, no se crea nueva sesión de pago;
+    // se actualiza automáticamente tras confirmación.
+    if (plan === "PREMIUM" && currentPlan === "BASICO") {
+      setModalMessage("El cambio a Premium se realizará automáticamente sin sesión de pago. ¿Deseas proceder?");
+      setConfirmUpgrade(true);
+      setShowModal(true);
+      return;
+    }
+
+    // Caso normal: se crea sesión de checkout.
     try {
       const res = await fetch("/api/stripe-create", {
         method: "POST",
@@ -60,6 +72,30 @@ const PricingPage: React.FC = () => {
       setModalMessage("Hubo un problema al iniciar la compra. Inténtalo de nuevo.");
       setShowModal(true);
     }
+  };
+
+  // Función para realizar el upgrade automático (Básico → Premium)
+  const handleUpgrade = async () => {
+    try {
+      const res = await fetch("/api/stripe-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "PREMIUM", empresaId }),
+      });
+      if (!res.ok) throw new Error("La petición falló");
+      const data = await res.json();
+      // En upgrade, no se genera sesión de pago, se actualiza automáticamente.
+      if (data.message) {
+        setModalMessage(data.message);
+      } else {
+        setModalMessage("Plan actualizado a Premium de forma inmediata.");
+      }
+    } catch (error) {
+      console.error("Error al actualizar a Premium:", error);
+      setModalMessage("Hubo un problema al actualizar el plan. Inténtalo de nuevo.");
+    }
+    setConfirmUpgrade(false);
+    setShowModal(true);
   };
 
   // Función para el plan personalizado
@@ -125,16 +161,14 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  // Uso dummy para evitar warnings de variables no usadas
+  // Dummy para evitar warnings de variables no usadas
   const _customPlanHandlers = { handleCustomPlan, handleCustomPlanPayment };
   console.log("Custom plan handlers reservados:", _customPlanHandlers);
 
-  // Si está loading, mostramos el spinner
   if (loading) {
     return <Loading />;
   }
 
-  // Ahora, a pesar de no tener empresa (usuario no registrado), mostramos la página
   return (
     <main className={styles["pricing-container"]}>
       <h1 className={styles["pricing-title"]}>Precios</h1>
@@ -179,7 +213,12 @@ const PricingPage: React.FC = () => {
         title=""
         message={modalMessage}
         type="alert"
-        onConfirm={() => setShowModal(false)}
+        onConfirm={() => {
+          setShowModal(false);
+          if (confirmUpgrade) {
+            handleUpgrade();
+          }
+        }}
       />
     </main>
   );
