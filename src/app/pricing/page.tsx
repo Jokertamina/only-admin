@@ -209,17 +209,22 @@ const PricingPage: React.FC = () => {
       </div>
 
       <CustomModal
-        isOpen={showModal}
-        title=""
-        message={modalMessage}
-        type="alert"
-        onConfirm={() => {
-          setShowModal(false);
-          if (confirmUpgrade) {
-            handleUpgrade();
-          }
-        }}
-      />
+  isOpen={showModal}
+  title="Confirmación"
+  message={modalMessage}
+  type="confirm"
+  onConfirm={() => {
+    setShowModal(false);
+    if (confirmUpgrade) {
+      handleUpgrade();
+    }
+  }}
+  onCancel={() => {
+    setShowModal(false);
+    setConfirmUpgrade(false);
+  }}
+/>
+
     </main>
   );
 };
