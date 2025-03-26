@@ -28,6 +28,7 @@ interface SubscriptionData {
 interface Empresa {
   id: string;
   nombre: string;
+  email?: string;
   domicilio?: string;
   nif?: string;
   contactPhone?: string | null;
@@ -328,6 +329,22 @@ const handleDeleteAccount = () => {
         const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
         const result = await deleteUserAccount({});
         console.log("deleteUserAccount result:", result);
+
+        // Notificamos a Telegram que la cuenta se ha eliminado completamente.
+        if (empresa) {
+          await fetch("/api/notify-company-event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              eventType: "delete",
+              empresaId: empresa.id,
+              nombre: empresa.nombre, // Se incluye el nombre de la empresa
+              email: empresa.email,
+              plan: empresa.plan,
+            }),
+          });
+        }
+
         setModalData({
           isOpen: true,
           type: "alert",
@@ -356,6 +373,7 @@ const handleDeleteAccount = () => {
     onCancel: () => setModalData(null),
   });
 };
+
 
 
   // ==========================

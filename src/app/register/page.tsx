@@ -152,6 +152,17 @@ export default function RegisterPage() {
       if (!foundEmpresaId) {
         console.warn("[Registro] empresaId no detectado tras varios intentos.");
       }
+       // Llamada a notificación para registro de empresa
+       await fetch("/api/notify-company-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "register",
+          empresaId: empresaId,
+          nombre: nombreEmpresa,
+          email: trimmedEmail,
+        }),
+      });
 
       window.location.href = "/admin";
     } catch (err: unknown) {

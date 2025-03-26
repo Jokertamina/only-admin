@@ -35,7 +35,6 @@ export async function POST(req: NextRequest) {
   // Si no viene empresaId en metadata, usamos el customer id para buscar la empresa
   if (!empresaId) {
     let customerId: string | undefined;
-    // Algunos objetos (como Subscription o Invoice) tienen la propiedad customer
     if ("customer" in session && typeof session.customer === "string") {
       customerId = session.customer;
     }
@@ -43,7 +42,6 @@ export async function POST(req: NextRequest) {
       console.warn("Evento sin empresaId ni customer id, ignorado");
       return NextResponse.json({ message: "Evento sin empresaId ni customer id" });
     }
-    // Buscamos en Firestore la empresa que tenga stripeCustomerId igual a customerId
     const querySnapshot = await adminDb
       .collection("Empresas")
       .where("stripeCustomerId", "==", customerId)
@@ -67,7 +65,6 @@ export async function POST(req: NextRequest) {
         // Nueva suscripción o cambio de plan
         const checkoutSession = session as Stripe.Checkout.Session;
         const subscriptionId = checkoutSession.subscription as string;
-
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
         await empresaRef.update({
@@ -86,7 +83,25 @@ export async function POST(req: NextRequest) {
           failedPaymentsCount: 0,
         });
 
-        console.log(`✅ Nueva suscripción ${metadata.plan} con detalles completos para empresa ${empresaId}`);
+        console.log(
+          `✅ Nueva suscripción ${metadata.plan} con detalles completos para empresa ${empresaId}`
+        );
+
+        // Notificamos el contrato (evento "contract")
+        const empresaSnap = await empresaRef.get();
+        const empresaData = empresaSnap.data();
+        const email = empresaData?.email || "";
+        await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || ""}/api/notify-company-event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "contract",
+            empresaId,
+            email,
+            plan: metadata.plan,
+            subscriptionId,
+          }),
+        });
       }
       break;
 
@@ -95,11 +110,12 @@ export async function POST(req: NextRequest) {
       const priceId = subscriptionUpdated.items.data[0].price.id;
       let updatedPlan = "SIN PLAN";
 
-      if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) updatedPlan = "PREMIUM";
-      else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) updatedPlan = "BASICO";
+      if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID)
+        updatedPlan = "PREMIUM";
+      else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID)
+        updatedPlan = "BASICO";
 
       const now = Math.floor(Date.now() / 1000);
-      // Usamos spread para condicionar la actualización de subscriptionId
       const updateObj = {
         plan: updatedPlan,
         subscriptionStatus: subscriptionUpdated.status,
@@ -113,17 +129,40 @@ export async function POST(req: NextRequest) {
           subscriptionUpdated.status === "active" &&
           (subscriptionUpdated.trial_end || 0) <= now
           ? { subscriptionId: subscriptionUpdated.id }
-          : {})
+          : {}),
       };
 
       await empresaRef.update(updateObj);
 
-      console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos para empresa ${empresaId}`);
+      console.log(
+        `🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos para empresa ${empresaId}`
+      );
+
+      // Notificamos cambio de plan (evento "change")
+      {
+        const empresaSnap = await empresaRef.get();
+        const empresaData = empresaSnap.data();
+        const email = empresaData?.email || "";
+        await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || ""}/api/notify-company-event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "change",
+            empresaId,
+            email,
+            plan: updatedPlan,
+            subscriptionId: subscriptionUpdated.id,
+          }),
+        });
+      }
       break;
 
     case "invoice.payment_succeeded":
       const invoice = session as Stripe.Invoice;
-      if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
+      if (
+        invoice.billing_reason &&
+        ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)
+      ) {
         await empresaRef.update({
           subscriptionStatus: "active",
           failedPaymentsCount: 0,
@@ -142,10 +181,16 @@ export async function POST(req: NextRequest) {
       const empresaData = empresaSnap.data();
 
       if (empresaData && empresaData.failedPaymentsCount >= 3 && empresaData.subscriptionId) {
-        await stripe.subscriptions.update(empresaData.subscriptionId, { cancel_at_period_end: true });
-        console.error(`⚠️ Suscripción suspendida automáticamente por múltiples fallos para empresa ${empresaId}`);
+        await stripe.subscriptions.update(empresaData.subscriptionId, {
+          cancel_at_period_end: true,
+        });
+        console.error(
+          `⚠️ Suscripción suspendida automáticamente por múltiples fallos para empresa ${empresaId}`
+        );
       } else {
-        console.warn(`❌ Fallo en pago para empresa ${empresaId}, intento ${empresaData?.failedPaymentsCount || 1}`);
+        console.warn(
+          `❌ Fallo en pago para empresa ${empresaId}, intento ${empresaData?.failedPaymentsCount || 1}`
+        );
       }
       break;
 
@@ -186,7 +231,9 @@ export async function POST(req: NextRequest) {
             downgradePending: false,
           });
 
-          console.warn(`🔄 Suscripción actualizada automáticamente a BASICO tras cancelar premium para empresa ${empresaId}`);
+          console.warn(
+            `🔄 Suscripción actualizada automáticamente a BASICO tras cancelar premium para empresa ${empresaId}`
+          );
         } else {
           console.warn(
             `🚫 No se encontraron suscripciones activas para cliente: ${customerId}. Marcando como SIN PLAN.`
@@ -206,6 +253,22 @@ export async function POST(req: NextRequest) {
             trialEnd: null,
           });
         }
+
+        // Notificamos eliminación (evento "delete")
+        const empresaSnap = await empresaRef.get();
+        const empresaData = empresaSnap.data();
+        const email = empresaData?.email || "";
+        await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || ""}/api/notify-company-event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "delete",
+            empresaId,
+            email,
+            plan: "SIN_PLAN",
+            subscriptionId: subscriptionDeleted.id,
+          }),
+        });
       } catch (error) {
         console.error(
           `⚠️ Error al procesar 'customer.subscription.deleted' para empresa ${empresaId}:`,
