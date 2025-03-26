@@ -25,10 +25,10 @@ export default function Footer() {
         {/* Información de contacto */}
         <div className={styles.footerContact}>
           <p>
-            📞 <a href="tel:+1234567890">+1 234 567 890</a>
+            📞 <a href="tel:+34642460148">642 460 148</a>
           </p>
           <p>
-            📧 <a href="mailto:contacto@symcrox.com">contacto@symcrox.com</a>
+            📧 <a href="mailto:symcrox.global@gmail.com">symcrox.global@gmail.com</a>
           </p>
         </div>
 
