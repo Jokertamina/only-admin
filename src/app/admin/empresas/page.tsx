@@ -326,7 +326,7 @@ const handleDeleteAccount = () => {
 
         // Si hay una suscripción activa, invocamos la eliminación de la suscripción
         if (empresa?.subscriptionId) {
-          await fetch("/api/subscription-deleted", {
+          await fetch("/api/subscription-delete-account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ subscriptionId: empresa.subscriptionId }),
@@ -383,9 +383,6 @@ const handleDeleteAccount = () => {
     onCancel: () => setModalData(null),
   });
 };
-
-
-
 
   // ==========================
   //  Loading y Sin Empresa
