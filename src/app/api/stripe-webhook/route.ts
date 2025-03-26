@@ -1,5 +1,4 @@
 // src/app/api/stripe-webhook/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "../../../lib/firebaseAdminConfig";
@@ -29,12 +28,31 @@ export async function POST(req: NextRequest) {
     | Stripe.Checkout.Session
     | Stripe.Invoice
     | Stripe.Charge;
+  // Intentamos leer los metadatos
   const metadata = session.metadata || {};
-  const empresaId = metadata.empresaId;
+  let empresaId = metadata.empresaId;
 
+  // Si no viene empresaId en metadata, usamos el customer id para buscar la empresa
   if (!empresaId) {
-    console.warn("Evento sin empresaId, ignorado");
-    return NextResponse.json({ message: "Evento sin empresaId" });
+    let customerId: string | undefined;
+    // Algunos objetos (como Subscription o Invoice) tienen la propiedad customer
+    if ("customer" in session && typeof session.customer === "string") {
+      customerId = session.customer;
+    }
+    if (!customerId) {
+      console.warn("Evento sin empresaId ni customer id, ignorado");
+      return NextResponse.json({ message: "Evento sin empresaId ni customer id" });
+    }
+    // Buscamos en Firestore la empresa que tenga stripeCustomerId igual a customerId
+    const querySnapshot = await adminDb
+      .collection("Empresas")
+      .where("stripeCustomerId", "==", customerId)
+      .get();
+    if (querySnapshot.empty) {
+      console.warn(`No se encontró empresa para customer id: ${customerId}`);
+      return NextResponse.json({ message: "No se encontró empresa para customer id" });
+    }
+    empresaId = querySnapshot.docs[0].id;
   }
 
   const empresaRef = adminDb.collection("Empresas").doc(empresaId);
@@ -68,7 +86,7 @@ export async function POST(req: NextRequest) {
           failedPaymentsCount: 0,
         });
 
-        console.log(`✅ Nueva suscripción ${metadata.plan} con detalles completos empresa ${empresaId}`);
+        console.log(`✅ Nueva suscripción ${metadata.plan} con detalles completos para empresa ${empresaId}`);
       }
       break;
 
@@ -100,7 +118,7 @@ export async function POST(req: NextRequest) {
 
       await empresaRef.update(updateObj);
 
-      console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos empresa ${empresaId}`);
+      console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos para empresa ${empresaId}`);
       break;
 
     case "invoice.payment_succeeded":
@@ -110,7 +128,7 @@ export async function POST(req: NextRequest) {
           subscriptionStatus: "active",
           failedPaymentsCount: 0,
         });
-        console.log(`💳 Pago exitoso (${invoice.billing_reason}) empresa ${empresaId}`);
+        console.log(`💳 Pago exitoso (${invoice.billing_reason}) para empresa ${empresaId}`);
       }
       break;
 
@@ -125,9 +143,9 @@ export async function POST(req: NextRequest) {
 
       if (empresaData && empresaData.failedPaymentsCount >= 3 && empresaData.subscriptionId) {
         await stripe.subscriptions.update(empresaData.subscriptionId, { cancel_at_period_end: true });
-        console.error(`⚠️ Suscripción suspendida automáticamente por múltiples fallos empresa ${empresaId}`);
+        console.error(`⚠️ Suscripción suspendida automáticamente por múltiples fallos para empresa ${empresaId}`);
       } else {
-        console.warn(`❌ Fallo en pago empresa ${empresaId}, intento ${empresaData?.failedPaymentsCount || 1}`);
+        console.warn(`❌ Fallo en pago para empresa ${empresaId}, intento ${empresaData?.failedPaymentsCount || 1}`);
       }
       break;
 
@@ -201,7 +219,7 @@ export async function POST(req: NextRequest) {
         subscriptionStatus: "refunded",
       });
 
-      console.warn(`💸 Pago reembolsado manualmente, empresa ${empresaId}. Revisa manualmente.`);
+      console.warn(`💸 Pago reembolsado manualmente para empresa ${empresaId}. Revisa manualmente.`);
       break;
 
     default:
