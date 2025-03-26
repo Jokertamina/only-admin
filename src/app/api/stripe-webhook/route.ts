@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
       const priceId = subscriptionUpdated.items.data[0].price.id;
       let updatedPlan = "SIN PLAN";
 
-      if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) updatedPlan = "PREMIUM";
-      else if (priceId === process.env.STRIPE_BASIC_PRICE_ID) updatedPlan = "BASICO";
+      if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) updatedPlan = "PREMIUM";
+      else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) updatedPlan = "BASICO";
 
       await empresaRef.update({
         plan: updatedPlan,
@@ -145,8 +145,8 @@ export async function POST(req: NextRequest) {
           const newPlanPriceId = activeOrTrialSubscription.items.data[0].price.id;
           let newPlan = "SIN PLAN";
 
-          if (newPlanPriceId === process.env.STRIPE_BASIC_PRICE_ID) newPlan = "BASICO";
-          else if (newPlanPriceId === process.env.STRIPE_PREMIUM_PRICE_ID) newPlan = "PREMIUM";
+          if (newPlanPriceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) newPlan = "BASICO";
+          else if (newPlanPriceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) newPlan = "PREMIUM";
 
           await empresaRef.update({
             subscriptionId: activeOrTrialSubscription.id,
