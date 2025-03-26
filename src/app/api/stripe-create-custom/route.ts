@@ -9,6 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia" as unknown as Stripe.LatestApiVersion,
 });
 
+// Definir la URL base a partir de la variable de entorno
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,8 +49,8 @@ export async function POST(request: NextRequest) {
     // - Se crea la suscripción de 55€/mes, con trial de 30 días (la cuota inicia al segundo mes)
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-      cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
+      success_url: `${APP_URL}/payment-success`,
+        cancel_url: `${APP_URL}/payment-cancel`,
       line_items: [
         {
           price_data: {

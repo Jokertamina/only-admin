@@ -7,6 +7,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
 });
 
+// Definir la URL base a partir de la variable de entorno
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
+
 // Función principal que maneja la petición POST
 export async function POST(req: NextRequest) {
   console.log("[stripe-create] Método recibido:", req.method);
@@ -59,8 +62,8 @@ export async function POST(req: NextRequest) {
       // Creamos Checkout normal (sin trial, a menos que quieras dárselo también a un nuevo plan)
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-        cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
+        success_url: `${APP_URL}/payment-success`,
+        cancel_url: `${APP_URL}/payment-cancel`,
         customer: stripeCustomerId,
         line_items: [{ price: newPriceId, quantity: 1 }],
         metadata: { empresaId, plan },
@@ -124,8 +127,8 @@ export async function POST(req: NextRequest) {
         const periodEnd = currentSubscription.current_period_end; // un UNIX timestamp
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
-          success_url: "https://adminpanel-rust-seven.vercel.app/payment-success",
-          cancel_url: "https://adminpanel-rust-seven.vercel.app/payment-cancel",
+          success_url: `${APP_URL}/payment-success`,
+        cancel_url: `${APP_URL}/payment-cancel`,
           customer: stripeCustomerId,
           line_items: [{ price: basicPriceId, quantity: 1 }],
           subscription_data: {

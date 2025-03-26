@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Estados para el modal de restablecimiento de contraseña
   const [showResetModal, setShowResetModal] = useState(false);
@@ -25,12 +26,18 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/admin");
+      // Si la redirección falla, refrescamos la página tras 3 segundos
+      setTimeout(() => {
+        router.refresh();
+      }, 3000);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
+      setIsLoading(false);
     }
   };
 
@@ -62,63 +69,67 @@ export default function LoginPage() {
 
   return (
     <main className={styles["login-page"]}>
-      <div className={styles["login-card"]}>
-        <h1 className={styles["login-heading"]}>Iniciar Sesión</h1>
-        <form onSubmit={handleLogin} className={styles["login-form"]}>
-          <div className={styles["login-form-group"]}>
-            <label className={styles["login-label"]} htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="Correo electrónico"
-              className={styles["login-input"]}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className={styles["login-form-group"]}>
-            <label className={styles["login-label"]} htmlFor="password">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Contraseña"
-              className={styles["login-input"]}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          {error && <p className={styles["login-error"]}>{error}</p>}
-          <button type="submit" className={styles["login-button"]}>
-            Ingresar
-          </button>
-        </form>
-        <p className={styles["login-extra"]}>
-          ¿No tienes cuenta?{" "}
-          <Link href="/register" className={styles["login-link"]}>
-            Regístrate
-          </Link>
-        </p>
-        <p className={styles["login-extra"]}>
-          ¿Has olvidado tu contraseña?{" "}
-          <span
-            onClick={() => {
-              setResetEmail(""); // Reseteamos el campo
-              setResetError("");
-              setShowResetModal(true);
-            }}
-            className={styles["login-link"]}
-            style={{ cursor: "pointer" }}
-          >
-            Haz clic aquí
-          </span>
-        </p>
-      </div>
+      {isLoading ? (
+        <Loading />
+      ) : (
+        <div className={styles["login-card"]}>
+          <h1 className={styles["login-heading"]}>Iniciar Sesión</h1>
+          <form onSubmit={handleLogin} className={styles["login-form"]}>
+            <div className={styles["login-form-group"]}>
+              <label className={styles["login-label"]} htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="Correo electrónico"
+                className={styles["login-input"]}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className={styles["login-form-group"]}>
+              <label className={styles["login-label"]} htmlFor="password">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Contraseña"
+                className={styles["login-input"]}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <p className={styles["login-error"]}>{error}</p>}
+            <button type="submit" className={styles["login-button"]}>
+              Ingresar
+            </button>
+          </form>
+          <p className={styles["login-extra"]}>
+            ¿No tienes cuenta?{" "}
+            <Link href="/register" className={styles["login-link"]}>
+              Regístrate
+            </Link>
+          </p>
+          <p className={styles["login-extra"]}>
+            ¿Has olvidado tu contraseña?{" "}
+            <span
+              onClick={() => {
+                setResetEmail(""); // Reseteamos el campo
+                setResetError("");
+                setShowResetModal(true);
+              }}
+              className={styles["login-link"]}
+              style={{ cursor: "pointer" }}
+            >
+              Haz clic aquí
+            </span>
+          </p>
+        </div>
+      )}
 
       {showResetModal && (
         <CustomModal
