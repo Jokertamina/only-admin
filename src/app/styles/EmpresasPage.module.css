@@ -249,7 +249,7 @@
 
 
 .empresas-btn-delete-account {
-  background-color: red;
+  background-color: #e74c3c;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -261,7 +261,7 @@
 }
 
 .empresas-btn-delete-account:hover {
-  background-color: darkred;
+  background-color: #c0392b;
 }
 
 
