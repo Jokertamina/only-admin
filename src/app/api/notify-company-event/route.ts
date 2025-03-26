@@ -8,10 +8,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { eventType, empresaId, email, plan, subscriptionId } = body;
+    // Asegúrate de enviar "nombre" en el body
+    const { eventType, empresaId, nombre, email, plan, subscriptionId } = body;
+
     let message = "";
-    // Si se necesita información adicional desde Stripe, se puede obtener usando subscriptionId
     let planDetails = "";
+
+    // Si necesitas detalles de la suscripción, los obtienes aquí
     if (subscriptionId) {
       try {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -23,19 +26,35 @@ export async function POST(request: NextRequest) {
 
     switch (eventType) {
       case "register":
-        message = `Nueva empresa registrada.\nEmpresa ID: ${empresaId}\nEmail: ${email}\nRevisa el panel de administración.`;
+        message = `Nueva empresa registrada.
+Empresa ID: ${empresaId}
+Nombre: ${nombre}
+Email: ${email}
+Revisa el panel de administración.`;
         break;
+
       case "contract":
-        message = `Empresa ${empresaId} ha contratado un plan.\nEmail: ${email}\nPlan: ${plan}${planDetails}\nVerifica los detalles de la contratación.`;
+        message = `La empresa "${nombre}" (ID: ${empresaId}) ha contratado un plan.
+Email: ${email}
+Plan: ${plan}${planDetails}
+Verifica los detalles de la contratación.`;
         break;
+
       case "change":
-        message = `Empresa ${empresaId} ha cambiado su plan.\nEmail: ${email}\nNuevo plan: ${plan}${planDetails}\nVerifica el cambio en el sistema.`;
+        message = `La empresa "${nombre}" (ID: ${empresaId}) ha cambiado su plan.
+Email: ${email}
+Nuevo plan: ${plan}${planDetails}
+Verifica el cambio en el sistema.`;
         break;
+
       case "delete":
-        message = `Empresa ${empresaId} ha eliminado su cuenta.\nEmail: ${email}\nTodos los datos serán eliminados.`;
+        message = `La empresa "${nombre}" (ID: ${empresaId}) ha eliminado su cuenta.
+Email: ${email}
+Todos los datos serán eliminados.`;
         break;
+
       default:
-        message = `Evento desconocido para empresa ${empresaId}.`;
+        message = `Evento desconocido para la empresa "${nombre}" (ID: ${empresaId}).`;
     }
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -56,10 +75,10 @@ export async function POST(request: NextRequest) {
     });
 
     const telegramResponse = await res.json();
-console.log("Respuesta completa de Telegram:", telegramResponse);
-if (!telegramResponse.ok) {
-  throw new Error("Error al enviar notificación a Telegram");
-}
+    console.log("Respuesta completa de Telegram:", telegramResponse);
+    if (!telegramResponse.ok) {
+      throw new Error("Error al enviar notificación a Telegram");
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
