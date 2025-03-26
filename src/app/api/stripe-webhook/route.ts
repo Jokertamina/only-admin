@@ -72,49 +72,49 @@ export async function POST(req: NextRequest) {
       }
       break;
 
-      case "customer.subscription.updated":
-  const subscriptionUpdated = session as Stripe.Subscription;
-  const priceId = subscriptionUpdated.items.data[0].price.id;
-  let updatedPlan = "SIN PLAN";
+    case "customer.subscription.updated":
+      const subscriptionUpdated = session as Stripe.Subscription;
+      const priceId = subscriptionUpdated.items.data[0].price.id;
+      let updatedPlan = "SIN PLAN";
 
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) updatedPlan = "PREMIUM";
-  else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) updatedPlan = "BASICO";
+      if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) updatedPlan = "PREMIUM";
+      else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) updatedPlan = "BASICO";
 
-  const now = Math.floor(Date.now() / 1000);
-  // Usamos spread para condicionar la actualización de subscriptionId
-  const updateObj = {
-    plan: updatedPlan,
-    subscriptionStatus: subscriptionUpdated.status,
-    currentPeriodStart: subscriptionUpdated.current_period_start,
-    currentPeriodEnd: subscriptionUpdated.current_period_end,
-    cancelAtPeriodEnd: subscriptionUpdated.cancel_at_period_end,
-    canceledAt: subscriptionUpdated.canceled_at || null,
-    endedAt: subscriptionUpdated.ended_at || null,
-    downgradePending: false,
-    ...( updatedPlan === "BASICO" &&
-        subscriptionUpdated.status === "active" &&
-        (subscriptionUpdated.trial_end || 0) <= now
-      ? { subscriptionId: subscriptionUpdated.id }
-      : {} )
-  };
+      const now = Math.floor(Date.now() / 1000);
+      // Usamos spread para condicionar la actualización de subscriptionId
+      const updateObj = {
+        plan: updatedPlan,
+        subscriptionStatus: subscriptionUpdated.status,
+        currentPeriodStart: subscriptionUpdated.current_period_start,
+        currentPeriodEnd: subscriptionUpdated.current_period_end,
+        cancelAtPeriodEnd: subscriptionUpdated.cancel_at_period_end,
+        canceledAt: subscriptionUpdated.canceled_at || null,
+        endedAt: subscriptionUpdated.ended_at || null,
+        downgradePending: false,
+        ...(updatedPlan === "BASICO" &&
+          subscriptionUpdated.status === "active" &&
+          (subscriptionUpdated.trial_end || 0) <= now
+          ? { subscriptionId: subscriptionUpdated.id }
+          : {})
+      };
 
-  await empresaRef.update(updateObj);
+      await empresaRef.update(updateObj);
 
-  console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos empresa ${empresaId}`);
-  break;
+      console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos empresa ${empresaId}`);
+      break;
 
-      
-      case "invoice.payment_succeeded":
-        const invoice = session as Stripe.Invoice;
-        if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
-          await empresaRef.update({
-            subscriptionStatus: "active",
-            failedPaymentsCount: 0,
-          });
-          console.log(`💳 Pago exitoso (${invoice.billing_reason}) empresa ${empresaId}`);
-        }
-        break;
-      
+
+    case "invoice.payment_succeeded":
+      const invoice = session as Stripe.Invoice;
+      if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
+        await empresaRef.update({
+          subscriptionStatus: "active",
+          failedPaymentsCount: 0,
+        });
+        console.log(`💳 Pago exitoso (${invoice.billing_reason}) empresa ${empresaId}`);
+      }
+      break;
+
 
     case "invoice.payment_failed":
       await empresaRef.update({
