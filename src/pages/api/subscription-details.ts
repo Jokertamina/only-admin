@@ -34,12 +34,16 @@ export default async function handler(
     };
 
     res.status(200).json({ success: true, subscriptionData });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error al obtener datos de la suscripción:", error);
+    let errorMessage = "Error desconocido";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
     res.status(500).json({
       success: false,
       message: "Error al obtener los datos de la suscripción",
-      error: error.message,
+      error: errorMessage,
     });
-  }
+  }  
 }
