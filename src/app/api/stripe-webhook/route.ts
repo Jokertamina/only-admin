@@ -103,7 +103,6 @@ export async function POST(req: NextRequest) {
       console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos empresa ${empresaId}`);
       break;
 
-
     case "invoice.payment_succeeded":
       const invoice = session as Stripe.Invoice;
       if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
@@ -114,7 +113,6 @@ export async function POST(req: NextRequest) {
         console.log(`💳 Pago exitoso (${invoice.billing_reason}) empresa ${empresaId}`);
       }
       break;
-
 
     case "invoice.payment_failed":
       await empresaRef.update({
@@ -148,33 +146,29 @@ export async function POST(req: NextRequest) {
           status: "all",
         });
 
-        const activeOrTrialSubscription = subscriptions.data.find((sub) =>
-          ["active", "trialing"].includes(sub.status)
+        // Buscamos específicamente la suscripción con el plan BASICO
+        const basicSubscription = subscriptions.data.find((sub) =>
+          ["active", "trialing"].includes(sub.status) &&
+          sub.items.data[0].price.id === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID
         );
 
-        if (activeOrTrialSubscription) {
-          const newPlanPriceId = activeOrTrialSubscription.items.data[0].price.id;
-          let newPlan = "SIN PLAN";
-
-          if (newPlanPriceId === process.env.NEXT_PUBLIC_STRIPE_BASICO_PRICE_ID) newPlan = "BASICO";
-          else if (newPlanPriceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) newPlan = "PREMIUM";
-
+        if (basicSubscription) {
           await empresaRef.update({
-            subscriptionId: activeOrTrialSubscription.id,
-            plan: newPlan,
-            subscriptionStatus: activeOrTrialSubscription.status,
-            subscriptionCreated: activeOrTrialSubscription.created,
-            currentPeriodStart: activeOrTrialSubscription.current_period_start,
-            currentPeriodEnd: activeOrTrialSubscription.current_period_end,
-            trialStart: activeOrTrialSubscription.trial_start || null,
-            trialEnd: activeOrTrialSubscription.trial_end || null,
-            cancelAtPeriodEnd: activeOrTrialSubscription.cancel_at_period_end,
-            canceledAt: activeOrTrialSubscription.canceled_at || null,
-            endedAt: activeOrTrialSubscription.ended_at || null,
+            subscriptionId: basicSubscription.id,
+            plan: "BASICO",
+            subscriptionStatus: basicSubscription.status,
+            subscriptionCreated: basicSubscription.created,
+            currentPeriodStart: basicSubscription.current_period_start,
+            currentPeriodEnd: basicSubscription.current_period_end,
+            trialStart: basicSubscription.trial_start || null,
+            trialEnd: basicSubscription.trial_end || null,
+            cancelAtPeriodEnd: basicSubscription.cancel_at_period_end,
+            canceledAt: basicSubscription.canceled_at || null,
+            endedAt: basicSubscription.ended_at || null,
             downgradePending: false,
           });
 
-          console.warn(`🔄 Suscripción actualizada automáticamente a ${newPlan} tras cancelar anterior empresa ${empresaId}`);
+          console.warn(`🔄 Suscripción actualizada automáticamente a BASICO tras cancelar premium para empresa ${empresaId}`);
         } else {
           console.warn(
             `🚫 No se encontraron suscripciones activas para cliente: ${customerId}. Marcando como SIN PLAN.`
