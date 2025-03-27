@@ -172,7 +172,25 @@ const PricingPage: React.FC = () => {
         Descubre el plan que mejor se adapta a tus necesidades.
       </p>
 
+
+
       <div className={styles["pricing-cards"]}>
+
+        {/* Card FREE */}
+        <PricingCard
+          plan="Plan Gratuito"
+          price=""
+          features={[
+            "Si no has contratado ningún plan se te asigna por defecto",
+            "1 Registro de empleados",
+            "1 Registro de obras",
+            "Consultas de dudas mediante correo electrónico",
+          ]}
+          buttonText="Plan Gratuito"
+          disabled={true}
+        />
+
+
         {/* Card Básico */}
         <PricingCard
           plan="Básico"
@@ -186,6 +204,7 @@ const PricingPage: React.FC = () => {
           buttonText={currentPlan === "BASICO" ? "Plan actual" : "Elegir plan"}
           onBuy={() => handleBuyPlan("BASICO")}
           disabled={currentPlan === "BASICO"}
+          
         />
 
         {/* Card Premium */}
