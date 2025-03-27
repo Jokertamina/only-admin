@@ -3,11 +3,11 @@ import ClientWrapper from "./components/ClientWrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "SYMCROX | Control de fichajes y gestión de obras en tiempo real",
+  title: "¡Optimiza tu empresa con SYMCROX! | Control de fichajes y gestión de obras",
   description:
-    "Gestiona registros horarios, controla empleados y optimiza presupuestos fácilmente con SYMCROX. Registra fichajes desde Telegram y WhatsApp.",
+    "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y presupuestos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
   keywords:
-    "registro horarios empleados, fichajes telegram, fichajes whatsapp, control horas obras, gestión empleados, optimizar costes proyectos, bot fichajes telegram, bot fichajes whatsapp",
+    "fichajes digitales, control de asistencia, gestión de empleados, optimización de presupuestos, bot fichajes, Telegram, WhatsApp",
   icons: {
     icon: [
       { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
@@ -23,9 +23,9 @@ export const metadata: Metadata = {
     canonical: "https://symcrox.com/",
   },
   openGraph: {
-    title: "SYMCROX | Control de fichajes y gestión de obras en tiempo real",
+    title: "¡Optimiza tu empresa con SYMCROX! | Control de fichajes y gestión de obras",
     description:
-      "Gestiona registros horarios, controla empleados y optimiza presupuestos fácilmente con SYMCROX. Registra fichajes desde Telegram y WhatsApp.",
+      "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y presupuestos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
     url: "https://symcrox.com",
     siteName: "SYMCROX",
     locale: "es_ES",
@@ -34,19 +34,10 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "SYMCROX Fichajes en Tiempo Real",
+        alt: "SYMCROX: Fichajes en Tiempo Real y Gestión de Obras",
       },
     ],
     type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@SYMCROX",
-    creator: "@SYMCROX",
-    title: "SYMCROX | Control de fichajes y gestión de obras",
-    description:
-      "Registra fichajes desde Telegram y WhatsApp. Gestiona horarios de empleados y optimiza proyectos con SYMCROX.",
-    images: ["/og-image.jpg"],
   },
 };
 
@@ -68,25 +59,11 @@ export default function RootLayout({
     <html lang="es">
       <head>
         {/* Favicons y Web Manifest */}
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/favicon-32x32.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="16x16"
-          href="/favicon-16x16.png"
-        />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="shortcut icon" href="/favicon.ico" />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon.png"
-        />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
 
         {/* Datos estructurados JSON‑LD */}
