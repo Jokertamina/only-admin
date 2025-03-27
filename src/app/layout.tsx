@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "¡Optimiza tu empresa con SYMCROX! | Control de fichajes y gestión de obras",
   description:
-    "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y presupuestos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
+    "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y obras o proyectos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
   keywords:
-    "fichajes digitales, control de asistencia, gestión de empleados, optimización de presupuestos, bot fichajes, Telegram, WhatsApp",
+    "fichajes digitales, control de asistencia, gestión de empleados, optimización de obras, bot fichajes, Telegram, WhatsApp",
   icons: {
     icon: [
       { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "¡Optimiza tu empresa con SYMCROX! | Control de fichajes y gestión de obras",
     description:
-      "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y presupuestos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
+      "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y obras o proyectos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
     url: "https://symcrox.com",
     siteName: "SYMCROX",
     locale: "es_ES",
