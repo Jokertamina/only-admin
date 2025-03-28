@@ -19,7 +19,7 @@ export default function Home() {
   }, []);
 
   const handleCtaClick = () => {
-    router.push(user ? "/admin" : "/login");
+    router.push(user ? "/admin" : "/register");
   };
 
   return (
