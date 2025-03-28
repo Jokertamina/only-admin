@@ -110,14 +110,14 @@ export default function NavBar() {
                 className={styles["navbar-link"]}
                 onClick={() => setMenuOpen(false)}
               >
-                Login
+                Iniciar sesión
               </Link>
               <Link
                 href="/register"
                 className={styles["navbar-link"]}
                 onClick={() => setMenuOpen(false)}
               >
-                Register
+                Registrarse
               </Link>
             </>
           )}
