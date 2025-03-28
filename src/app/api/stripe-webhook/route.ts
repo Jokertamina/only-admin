@@ -121,16 +121,67 @@ export async function POST(req: NextRequest) {
       console.log(`🔄 Suscripción sincronizada automáticamente a ${updatedPlan} con detalles completos para empresa ${empresaId}`);
       break;
 
-    case "invoice.payment_succeeded":
+    case "invoice.payment_succeeded": {
       const invoice = session as Stripe.Invoice;
-      if (invoice.billing_reason && ["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) {
-        await empresaRef.update({
-          subscriptionStatus: "active",
+
+      // 1) Verificar si la factura tiene una suscripción asociada
+      if (!invoice.subscription) {
+        console.warn(`⚠️ Factura sin subscription. No se puede actualizar el estado.`);
+        break;
+      }
+
+      try {
+        // 2) Recuperar la suscripción desde Stripe
+        const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+
+        // 3) Obtener el customerId de la suscripción
+        const customerId = typeof subscription.customer === "string"
+          ? subscription.customer
+          : null;
+
+        if (!customerId) {
+          console.warn(`⚠️ No se pudo obtener el customerId de la suscripción ${subscription.id}`);
+          break;
+        }
+
+        // 4) Buscar en Firestore la empresa que tenga stripeCustomerId = customerId
+        const querySnapshot = await adminDb
+          .collection("Empresas")
+          .where("stripeCustomerId", "==", customerId)
+          .get();
+
+        if (querySnapshot.empty) {
+          console.warn(`⚠️ No se encontró empresa para customerId: ${customerId}`);
+          break;
+        }
+
+        const empresaIdLocal = querySnapshot.docs[0].id;
+        const empresaRefLocal = adminDb.collection("Empresas").doc(empresaIdLocal);
+
+        // 5) Actualizar el estado de la suscripción según lo que devuelva Stripe
+        await empresaRefLocal.update({
+          subscriptionStatus: subscription.status,
+          plan: subscription.items.data[0].price.id === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID
+            ? "PREMIUM"
+            : "BASICO",
+          currentPeriodStart: subscription.current_period_start,
+          currentPeriodEnd: subscription.current_period_end,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          canceledAt: subscription.canceled_at || null,
+          endedAt: subscription.ended_at || null,
           failedPaymentsCount: 0,
         });
-        console.log(`💳 Pago exitoso (${invoice.billing_reason}) para empresa ${empresaId}`);
+
+        console.log(
+          `💳 Pago exitoso para empresa ${empresaIdLocal} (suscripción ${subscription.id}, estado ${subscription.status}).`
+        );
+      } catch (error) {
+        console.error(`⚠️ Error en invoice.payment_succeeded:`, error);
       }
+
       break;
+    }
+
 
     case "invoice.payment_failed":
       await empresaRef.update({
