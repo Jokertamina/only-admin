@@ -31,7 +31,7 @@ export default function Home() {
             SYMCROX: Control de fichajes y optimización de obras
           </h1>
           <p className={styles.heroDescription}>
-            Gestiona fichajes desde Telegram o WhatsApp, controla costes y optimiza presupuestos en tiempo real. La solución preferida por autónomos y empresas.
+            Gestiona fichajes desde Telegram o WhatsApp (Proximamente), controla costes y optimiza presupuestos en tiempo real. La solución preferida por autónomos y empresas.
           </p>
           <button className={styles.ctaButton} onClick={handleCtaClick}>
             {user ? "Accede al Panel de Control" : "Pruébalo Gratis Ahora"}
