@@ -121,18 +121,6 @@ const AdminPage = () => {
       <p className={styles["admin-page-welcome"]}>
         Bienvenido, {companyName ? companyName : user.email}.
       </p>
-      <section className={styles["admin-page-info"]}>
-        <h2 className={styles["admin-page-subtitle"]}>Herramientas del Panel</h2>
-        <ul className={styles["admin-page-list"]}>
-          <li>Gestión de Empresas</li>
-          <li>Administración de Empleados</li>
-          <li>Control de Fichajes</li>
-          <li>Visualización de Reportes</li>
-        </ul>
-        <p className={styles["admin-page-description"]}>
-          En este panel encontrarás herramientas para gestionar tu empresa, administrar usuarios, configurar planes y monitorizar la actividad de tus proyectos. Utiliza el menú lateral para navegar entre las secciones.
-        </p>
-      </section>
       {/* Sección para compartir el enlace del bot */}
       <section className={styles["admin-page-share-container"]}>
         {/* Contenedor izquierdo: Imagen del bot */}
@@ -152,6 +140,7 @@ const AdminPage = () => {
           <h3 className={styles["admin-page-share-title"]}>
             Bot para enviar a tus empleados
           </h3>
+          <p>Recuerda que deben tener previamente la app de Telegram descargada</p>
           <button
             onClick={() => setShowShareModal(true)}
             className={styles["admin-page-share-trigger"]}
@@ -161,12 +150,22 @@ const AdminPage = () => {
         </div>
       </section>
 
-
-
       {/* Modal para compartir el enlace */}
       {showShareModal && (
         <ShareModal botUrl={botUrl} onClose={() => setShowShareModal(false)} />
       )}
+      <section className={styles["admin-page-info"]}>
+        <h2 className={styles["admin-page-subtitle"]}>Herramientas del Panel</h2>
+        <ul className={styles["admin-page-list"]}>
+          <li>Gestión de Empresas</li>
+          <li>Administración de Empleados</li>
+          <li>Control de Fichajes</li>
+          <li>Visualización de Reportes</li>
+        </ul>
+        <p className={styles["admin-page-description"]}>
+          En este panel encontrarás herramientas para gestionar tu empresa, administrar usuarios, configurar planes y monitorizar la actividad de tus proyectos. Utiliza el menú lateral para navegar entre las secciones.
+        </p>
+      </section>
 
     </main>
   );
