@@ -18,10 +18,8 @@ interface LocationData {
   longitude: number;
 }
 
-// Ajustamos la interfaz para incluir las ubicaciones
+// Actualizamos la interfaz para excluir 'id' y 'empresaId'
 interface FichajeForExport {
-  id: string;
-  empresaId: string;
   fullName: string;
   obra: string;
   startTime: string;
@@ -35,7 +33,7 @@ interface ExportButtonsProps {
   fichajes: FichajeForExport[];
 }
 
-// 1) Tipo para las celdas de la tabla pdfMake (string o { text, link, color, ... })
+// Tipo para las celdas de la tabla pdfMake (string o { text, link, color, ... })
 type TableCell =
   | string
   | {
@@ -66,16 +64,13 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
     loadPdfMake();
   }, []);
 
-  // --------------------------------------------------------------------------------
-  // 1) Exportar a Excel con exceljs
+  // Exportar a Excel con exceljs
   const exportToExcel = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Fichajes");
 
-    // Definir columnas con headers y keys
+    // Definir columnas sin ID y EmpresaID
     worksheet.columns = [
-      { header: "ID", key: "id", width: 15 },
-      { header: "EmpresaID", key: "empresaId", width: 15 },
       { header: "Empleado", key: "fullName", width: 20 },
       { header: "Obra", key: "obra", width: 20 },
       { header: "Entrada", key: "startTime", width: 20 },
@@ -97,8 +92,6 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
         : "—";
 
       worksheet.addRow({
-        id: f.id,
-        empresaId: f.empresaId,
         fullName: f.fullName,
         obra: f.obra,
         startTime: startTime,
@@ -117,24 +110,13 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
     saveAs(blob, "fichajes.xlsx");
   };
 
-  // --------------------------------------------------------------------------------
-  // 2) Exportar a PDF
+  // Exportar a PDF
   const exportToPDF = () => {
     if (!pdfMake) return;
 
-    // Definimos 'body' como un array de arrays de TableCell
+    // Definir 'body' como un array de arrays de TableCell, sin ID ni EmpresaID
     const body: TableCell[][] = [
-      [
-        "ID",
-        "EmpresaID",
-        "Empleado",
-        "Obra",
-        "Entrada",
-        "Ubic. Inicio",
-        "Salida",
-        "Ubic. Fin",
-        "Duración (hrs)",
-      ],
+      ["Empleado", "Obra", "Entrada", "Ubic. Inicio", "Salida", "Ubic. Fin", "Duración (hrs)"],
     ];
 
     fichajes.forEach((f) => {
@@ -155,8 +137,6 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
         : "—";
 
       body.push([
-        f.id,
-        f.empresaId,
         f.fullName,
         f.obra,
         new Date(f.startTime).toLocaleString(),
@@ -173,7 +153,7 @@ export default function ExportButtons({ fichajes }: ExportButtonsProps) {
         { text: "Reporte de Fichajes", style: "header" },
         {
           table: {
-            widths: ["auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
+            widths: ["auto", "auto", "auto", "auto", "auto", "auto", "auto"],
             body,
           },
         },

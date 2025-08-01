@@ -111,7 +111,7 @@
 
 .admin-page-share-title {
   font-size: 1.8rem;
-  color: var(--color-primary);
+  color: var(--color-secondary);
   margin-bottom: 1rem;
 }
 
@@ -216,6 +216,29 @@
   .admin-page-welcome {
     font-size: 1rem;
   }
+  .admin-page-share-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 15px;
+  }
+  
+  .admin-page-share-image {
+    margin-bottom: 15px;
+  }
+  
+  .admin-page-share-content {
+    text-align: center;
+  }
+  
+  .admin-page-share-title {
+    font-size: 1.6rem;
+  }
+  
+  .admin-page-share-trigger {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.95rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -228,6 +251,26 @@
   .admin-page-welcome {
     font-size: 0.9rem;
   }
-
+  .admin-page-share-container {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .bot-image {
+    width: 100px;
+  }
+  
+  .admin-page-share-title {
+    font-size: 1.5rem;
+  }
+  
+  .admin-page-share-trigger {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .admin-page-share-content p {
+    font-size: 0.9rem;
+  }
 
 }

@@ -55,6 +55,12 @@ export default function FichajesPage() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Estados para filtros de exportación
+  const [filterEmployee, setFilterEmployee] = useState("");
+  const [filterObra, setFilterObra] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+
   useEffect(() => {
     async function fetchData() {
       const currentUser = auth.currentUser;
@@ -146,7 +152,65 @@ export default function FichajesPage() {
 
   const sortedFichajes = getSortedFichajes();
 
-  // 4. Agrupamos por empleado
+  // Filtrado para exportación
+  const filteredFichajes = sortedFichajes.filter((f) => {
+    if (filterEmployee && !f.fullName.toLowerCase().includes(filterEmployee.toLowerCase())) {
+      return false;
+    }
+    if (filterObra && (!f.obra || !f.obra.toLowerCase().includes(filterObra.toLowerCase()))) {
+      return false;
+    }
+    if (filterStartDate) {
+      if (new Date(f.startTime) < new Date(filterStartDate)) return false;
+    }
+    if (filterEndDate) {
+      if (new Date(f.startTime) > new Date(filterEndDate)) return false;
+    }
+    return true;
+  });
+
+  // Validaciones de filtros
+  const filterErrors: string[] = [];
+  const now = new Date();
+  if (filterStartDate) {
+    const startDate = new Date(filterStartDate);
+    if (startDate > now) {
+      filterErrors.push("La fecha de inicio no puede ser mayor que la fecha actual.");
+    }
+  }
+  if (filterEndDate) {
+    const endDate = new Date(filterEndDate);
+    if (endDate > now) {
+      filterErrors.push("La fecha final no puede ser mayor que la fecha actual.");
+    }
+  }
+  if (filterStartDate && filterEndDate) {
+    const startDate = new Date(filterStartDate);
+    const endDate = new Date(filterEndDate);
+    if (startDate > endDate) {
+      filterErrors.push("La fecha de inicio no puede ser mayor que la fecha final.");
+    }
+  }
+  if (
+    filteredFichajes.length === 0 &&
+    (filterEmployee || filterObra || filterStartDate || filterEndDate)
+  ) {
+    filterErrors.push("No se han encontrado fichajes que cumplan con los criterios seleccionados.");
+  }
+
+  // 5. Datos para exportar (plano) usando el filtrado aplicado
+  // Aquí se han eliminado las columnas 'id' y 'empresaId'
+  const fichajesForExport = filteredFichajes.map((f) => ({
+    fullName: f.fullName,
+    obra: f.obra ?? "",
+    startTime: f.startTime,
+    endTime: f.endTime,
+    duracion: f.duracion,
+    locationStart: f.locationStart,
+    locationEnd: f.locationEnd,
+  }));
+
+  // 4. Agrupamos por empleado (para la vista en pantalla)
   const groupedByEmployee = sortedFichajes.reduce((acc, fichaje) => {
     if (!acc[fichaje.fullName]) {
       acc[fichaje.fullName] = [];
@@ -191,19 +255,6 @@ export default function FichajesPage() {
     );
   }
 
-  // 5. Datos para exportar (plano)
-  const fichajesForExport = sortedFichajes.map((f) => ({
-    id: f.id,
-    empresaId: f.empresaId,
-    fullName: f.fullName,
-    obra: f.obra ?? "",
-    startTime: f.startTime,
-    endTime: f.endTime,
-    duracion: f.duracion,
-    locationStart: f.locationStart,
-    locationEnd: f.locationEnd,
-  }));
-
   return (
     <main className={styles["fichajes-container"]}>
       <h1 className={styles["fichajes-title"]}>Fichajes (Tiempo Real)</h1>
@@ -221,6 +272,60 @@ export default function FichajesPage() {
           <option value="fechaDesc">Entrada Descendente</option>
         </select>
       </div>
+
+      {/* Filtros de exportación */}
+      <div className={styles["export-filters"]}>
+        <h2>Opciones de exportación</h2>
+        <div className={styles["filter-group"]}>
+          <label htmlFor="filterEmployee">Empleado:</label>
+          <input
+            id="filterEmployee"
+            type="text"
+            value={filterEmployee}
+            onChange={(e) => setFilterEmployee(e.target.value)}
+            placeholder="Nombre del empleado"
+          />
+        </div>
+        <div className={styles["filter-group"]}>
+          <label htmlFor="filterObra">Obra:</label>
+          <input
+            id="filterObra"
+            type="text"
+            value={filterObra}
+            onChange={(e) => setFilterObra(e.target.value)}
+            placeholder="Nombre de la obra"
+          />
+        </div>
+        <div className={styles["filter-group"]}>
+          <label htmlFor="filterStartDate">Fecha inicio:</label>
+          <input
+            id="filterStartDate"
+            type="date"
+            value={filterStartDate}
+            onChange={(e) => setFilterStartDate(e.target.value)}
+          />
+        </div>
+        <div className={styles["filter-group"]}>
+          <label htmlFor="filterEndDate">Fecha fin:</label>
+          <input
+            id="filterEndDate"
+            type="date"
+            value={filterEndDate}
+            onChange={(e) => setFilterEndDate(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Mensajes de error/validación */}
+      {filterErrors.length > 0 && (
+        <div className={styles["error-messages"]}>
+          {filterErrors.map((err, idx) => (
+            <p key={idx} style={{ color: "red" }}>
+              {err}
+            </p>
+          ))}
+        </div>
+      )}
 
       <ExportButtons fichajes={fichajesForExport} />
 
@@ -246,10 +351,6 @@ export default function FichajesPage() {
                       {new Date(group.jornada.startTime).toLocaleString()}
                     </p>
                     <p>
-                      {/* 
-                        Si quieres ver la ubicación en Google Maps, 
-                        basta con un link a https://maps.google.com?q=lat,lng
-                      */}
                       <strong>Ubicación Entrada:</strong>{" "}
                       {group.jornada.locationStart ? (
                         <a
