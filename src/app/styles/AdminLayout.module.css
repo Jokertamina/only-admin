@@ -8,9 +8,10 @@
 
 /* Sidebar */
 .admin-sidebar {
-  background-color: var(--color-alt-bg);
+  background-color: var(--color-admin-sidebar);
   padding: 1rem;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid var(--color-admin-border);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 /* Contenido principal */

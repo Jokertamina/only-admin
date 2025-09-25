@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Política de Cancelación y Reembolso | Symcrox',
-  description: 'Consulta nuestra política de cancelación y reembolso, plazos y condiciones en Symcrox.',
+  title: 'Política de Cancelación y Reembolso | Fichagram',
+  description: 'Consulta nuestra política de cancelación y reembolso, plazos y condiciones en Fichagram.',
 };
 
 const cancelacionReembolsoTexto = `Política de Cancelación y Reembolso

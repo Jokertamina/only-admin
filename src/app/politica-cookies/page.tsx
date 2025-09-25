@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Política de Cookies | Symcrox",
-  description: "Consulta nuestra política de cookies y gestiona tus preferencias en Symcrox."
+  title: "Política de Cookies | Fichagram",
+  description: "Consulta nuestra política de cookies y gestiona tus preferencias en Fichagram."
 };
 
 export default function PoliticaCookiesPage() {

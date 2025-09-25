@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Aviso Legal | Symcrox",
-  description: "Aviso legal de Symcrox."
+  title: "Aviso Legal | Fichagram",
+  description: "Aviso legal de Fichagram."
 };
 
 export default function AvisoLegalPage() {

@@ -59,8 +59,8 @@ export default function NavBar() {
         <Link href="/" className={styles["navbar-brand"]}>
           <div className={styles["logo-container"]}>
             <Image
-              src="/images/logo-nombre.svg"
-              alt="Symcrox Logo"
+              src="/images/logo-fichagram.svg"
+              alt="Fichagram Logo"
               width={180}
               height={60}
               priority

@@ -3,9 +3,9 @@ import ClientWrapper from "./components/ClientWrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "¡Optimiza tu empresa con SYMCROX! | Control de fichajes y gestión de obras",
+  title: "¡Optimiza tu empresa con FICHAGRAM! | Control de fichajes y gestión de obras",
   description:
-    "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y obras o proyectos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
+    "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y obras o proyectos digitalmente. Registra desde Telegram y WhatsApp con FICHAGRAM.",
   keywords:
     "fichajes digitales, control de asistencia, gestión de empleados, optimización de obras, bot fichajes, Telegram, WhatsApp",
   icons: {
@@ -20,21 +20,21 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   robots: "index, follow",
   alternates: {
-    canonical: "https://symcrox.com/",
+    canonical: "https://fichagram.com/",
   },
   openGraph: {
-    title: "¡Optimiza tu empresa con SYMCROX! | Control de fichajes y gestión de obras",
+    title: "¡Optimiza tu empresa con FICHAGRAM! | Control de fichajes y gestión de obras",
     description:
-      "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y obras o proyectos digitalmente. Registra desde Telegram y WhatsApp con SYMCROX.",
-    url: "https://symcrox.com",
-    siteName: "SYMCROX",
+      "Optimiza tus procesos y reduce costes: controla fichajes, gestiona empleados y obras o proyectos digitalmente. Registra desde Telegram y WhatsApp con FICHAGRAM.",
+    url: "https://fichagram.com",
+    siteName: "FICHAGRAM",
     locale: "es_ES",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "SYMCROX: Fichajes en Tiempo Real y Gestión de Obras",
+        alt: "FICHAGRAM: Fichajes en Tiempo Real y Gestión de Obras",
       },
     ],
     type: "website",
@@ -49,10 +49,10 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "SYMCROX",
-    url: "https://symcrox.com",
-    logo: "https://symcrox.com/logo.png",
-    sameAs: ["https://www.instagram.com/SYMCROX"],
+    name: "FICHAGRAM",
+    url: "https://fichagram.com",
+    logo: "https://fichagram.com/logo.png",
+    sameAs: ["https://www.instagram.com/FICHAGRAM"],
   };
 
   return (

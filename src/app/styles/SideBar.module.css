@@ -1,10 +1,10 @@
 /* SideBar.css - Estilos avanzados y responsive */
 
 .sidebar {
-  background-color: var(--color-alt-bg);
+  background-color: var(--color-admin-sidebar);
   height: 100%;
   padding: 2rem 1rem;
-  box-shadow: inset -1px 0 0 #ddd; /* Línea sutil en el lateral */
+  box-shadow: inset -1px 0 0 var(--color-admin-border);
 }
 
 .sidebar-nav {
@@ -24,8 +24,10 @@
 }
 
 .sidebar-link:hover {
-  background-color: var(--color-primary);
+  background-color: var(--color-admin-hover);
   color: #fff;
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(1rem - 3px);
 }
 
 /* Opcional: estilo para resaltar la ruta activa

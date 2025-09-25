@@ -3,19 +3,19 @@ import { MetadataRoute } from "next";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: "https://symcrox.com/",
+      url: "https://fichagram.com/",
       lastModified: new Date().toISOString(),
     },
     {
-      url: "https://symcrox.com/blog",
+      url: "https://fichagram.com/blog",
       lastModified: new Date().toISOString(),
     },
     {
-      url: "https://symcrox.com/contacto",
+      url: "https://fichagram.com/contacto",
       lastModified: new Date().toISOString(),
     },
     {
-      url: "https://symcrox.com/servicios",
+      url: "https://fichagram.com/servicios",
       lastModified: new Date().toISOString(),
     },
   ];

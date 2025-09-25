@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidad | Symcrox',
-  description: 'Consulta nuestra política de privacidad en Symcrox.',
+  title: 'Política de Privacidad | Fichagram',
+  description: 'Consulta nuestra política de privacidad en Fichagram.',
 };
 
 const privacidadTexto = `Política de privacidad

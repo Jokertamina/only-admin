@@ -11,8 +11,8 @@ export default function Footer() {
           <Link href="/" className={styles["footer-brand"]}>
             <div className={styles["logo-container"]}>
               <Image
-                src="/images/logo-nombre.svg"
-                alt="Symcrox Logo"
+                src="/images/logo-fichagram.svg"
+                alt="Fichagram Logo"
                 width={180}
                 height={60}
                 priority
@@ -77,7 +77,7 @@ export default function Footer() {
 
       {/* Copyright */}
       <div className={styles.footerCopyright}>
-        &copy; {new Date().getFullYear()} Symcrox. Todos los derechos reservados.
+        &copy; {new Date().getFullYear()} Fichagram. Todos los derechos reservados.
       </div>
     </footer>
   );

@@ -28,7 +28,7 @@ export default function Home() {
       <section className={styles.heroSection}>
         <div className={styles.heroContent}>
           <h1 className={styles.heroHeading}>
-            SYMCROX: Control de fichajes y optimización de obras
+            FICHAGRAM: Control de fichajes y optimización de obras
           </h1>
           <p className={styles.heroDescription}>
             Gestiona fichajes desde Telegram o WhatsApp (Proximamente), controla costes y optimiza presupuestos en tiempo real. La solución preferida por autónomos y empresas.
@@ -40,7 +40,7 @@ export default function Home() {
         <div className={styles.heroImage}>
           <Image
             src="/images/bot-image.svg"
-            alt="Gestión inteligente con SYMCROX"
+            alt="Gestión inteligente con FICHAGRAM"
             width={700}
             height={500}
             quality={100}
@@ -97,7 +97,7 @@ export default function Home() {
         <div className={styles.featureImage}>
           <Image
             src="/images/feature-analytics.svg"
-            alt="Análisis en tiempo real con SYMCROX"
+            alt="Análisis en tiempo real con FICHAGRAM"
             width={600}
             height={450}
             draggable={false} // Evita arrastrar la imagen
@@ -118,7 +118,7 @@ export default function Home() {
           Convierte el control del tiempo en tu ventaja competitiva
         </h2>
         <p className={styles.ctaDescription}>
-          Únete a los negocios inteligentes que optimizan su gestión diaria con SYMCROX. Empieza hoy mismo, ¡sin compromiso!
+          Únete a los negocios inteligentes que optimizan su gestión diaria con FICHAGRAM. Empieza hoy mismo, ¡sin compromiso!
         </p>
         <button className={styles.ctaButton} onClick={handleCtaClick}>
           {user ? "Ir al Panel" : "Regístrate Gratis"}

@@ -7,23 +7,29 @@
 
 :root {
   /* Colores base */
-  --color-base-bg: #eef2f7;  /* Azul grisáceo claro */
-  --color-alt-bg: #e1e8ed;   /* Fondo alternativo para secciones */
+  --color-base-bg: #f8fafc;  /* Gris muy claro, casi blanco */
+  --color-alt-bg: #f1f5f9;   /* Gris claro para secciones */
 
   /* Tipografía */
-  --color-text-main: #2b2e3d;
-  --color-text-secondary: #6c7383;
+  --color-text-main: #1e293b;  /* Gris oscuro profesional */
+  --color-text-secondary: #64748b;  /* Gris medio */
 
   /* Colores primarios */
-  --color-primary: #7B61FF;   /* Púrpura vibrante */
-  --color-secondary: #FF6B81; /* Rosa fresco y atrevido */
+  --color-primary: #0694de;   /* Azul del logo - color principal */
+  --color-secondary: #0ea5e9; /* Azul más claro para hover */
 
   /* Acentos y alertas */
-  --color-accent: #00bcd4;    /* Teal para acentos */
-  --color-danger: #d45d79;
+  --color-accent: #06b6d4;    /* Cyan para acentos */
+  --color-danger: #ef4444;    /* Rojo para errores */
+  --color-success: #10b981;   /* Verde para éxito */
 
   /* Gradientes */
-  --gradient-bg: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+  --gradient-bg: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  
+  /* Colores adicionales para el admin */
+  --color-admin-sidebar: #ffffff;
+  --color-admin-border: #e2e8f0;
+  --color-admin-hover: #f1f5f9;
 }
 
 /* Resto del CSS global aquí */
