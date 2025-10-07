@@ -73,7 +73,7 @@
 .empresas-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
 }
 
 /* Información adicional */
@@ -101,20 +101,23 @@
 .empresas-btn-register {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
   margin-top: 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Botón Guardar */
 .empresas-btn-save {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
 }
 .empresas-btn-save:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 
 /* Botón Cancelar */
@@ -135,16 +138,18 @@
   color: #fff;
 }
 .empresas-btn-edit:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(41, 182, 246, 0.35);
 }
 
 /* Botón Registrar */
 .empresas-btn-register {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
 }
 .empresas-btn-register:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 
 /* ===================== */

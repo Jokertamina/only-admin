@@ -1,0 +1,20 @@
+<svg width="180" height="60" viewBox="0 0 180 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Triángulo azul principal -->
+  <path d="M25 5 L45 35 L5 35 Z" fill="#1DA1F2" stroke="#1DA1F2" stroke-width="1"/>
+  
+  <!-- Reloj/cronómetro blanco -->
+  <circle cx="25" cy="28" r="8" fill="white"/>
+  
+  <!-- Manecillas del reloj -->
+  <line x1="25" y1="28" x2="25" y2="22" stroke="#1DA1F2" stroke-width="2" stroke-linecap="round"/>
+  <line x1="25" y1="28" x2="29" y2="26" stroke="#1DA1F2" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Punto central -->
+  <circle cx="25" cy="28" r="1.5" fill="#1DA1F2"/>
+  
+  <!-- Arco sonrisa -->
+  <path d="M18 32 Q25 38 32 32" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+  
+  <!-- Texto FICHAGRAM -->
+  <text x="55" y="32" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1DA1F2">FICHAGRAM</text>
+</svg>

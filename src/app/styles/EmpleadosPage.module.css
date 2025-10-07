@@ -95,10 +95,14 @@
 
 /* Botón de creación */
 .empleados-btn-create {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   display: block;
   margin: 0 auto;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 15px rgba(29, 161, 242, 0.25);
 }
 .empleados-btn-create:hover {
   background-color: var(--color-secondary);
@@ -106,9 +110,17 @@
 
 /* Botones de edición */
 .empleados-btn-save {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   margin-right: 1rem;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 15px rgba(29, 161, 242, 0.25);
+}
+.empleados-btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 .empleados-btn-save:hover {
   background-color: var(--color-secondary);
@@ -159,7 +171,7 @@
 }
 
 .empleados-table th {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
 }
 

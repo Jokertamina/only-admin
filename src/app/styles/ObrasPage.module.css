@@ -74,7 +74,7 @@
 .obras-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
 }
 
 /* Botones generales */
@@ -92,23 +92,33 @@
 }
 
 .obras-btn-create {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   margin-left: auto;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 15px rgba(29, 161, 242, 0.25);
 }
 
 .obras-btn-create:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 
 .obras-btn-save {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   margin-right: 1rem;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 15px rgba(29, 161, 242, 0.25);
 }
 
 .obras-btn-save:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 
 .obras-btn-cancel {
@@ -153,7 +163,7 @@
 }
 
 .obras-table-head-row {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
 }
 
 .obras-table-head {

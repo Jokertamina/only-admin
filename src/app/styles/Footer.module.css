@@ -23,7 +23,7 @@
     align-items: center;
     padding: 0; 
     margin: 0;
-    height: 50px; /* Que coincida con el alto del logo */
+    height: 80px; /* Aumentado para el logo más grande */
   }
   
   
@@ -31,7 +31,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    max-height: 60px; /* Ajusta la altura máxima */
+    max-height: 80px; /* Aumentado para mejor visibilidad */
     padding: 0;
     margin: 0;
     margin: auto;
@@ -39,7 +39,7 @@
   
   .logo-img {
     width: auto;
-    height: 60px; /* Ajustado */
+    height: 80px; /* Aumentado para mejor visibilidad */
     max-width: 100%;
     display: block;
   }

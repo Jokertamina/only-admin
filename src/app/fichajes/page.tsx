@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth } from "../../../lib/firebaseConfig";
+import { db, auth } from "../../lib/firebaseConfig";
 import {
   collection,
   query,
@@ -11,8 +11,8 @@ import {
   getDoc,
   doc,
 } from "firebase/firestore";
-import ExportButtons from "../../components/ExportButtons";
-import styles from "../../styles/FichajesPage.module.css";
+import ExportButtons from "../components/ExportButtons";
+import styles from "../styles/FichajesPage.module.css";
 
 // 1. Extendemos la interfaz para incluir locationStart / locationEnd
 interface LocationData {

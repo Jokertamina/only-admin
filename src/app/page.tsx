@@ -1,129 +1,155 @@
-"use client";
+"use client"; // Necesario para usar hooks en Next.js 13
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { User } from "firebase/auth";
-import { auth } from "@/lib/firebaseConfig";
+import { auth, db } from "@/lib/firebaseConfig";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import styles from "./styles/AdminPage.module.css";
 import Image from "next/image";
-import styles from "./styles/HomePage.module.css";
 
-export default function Home() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+// Componente modal para compartir el bot
+type ShareModalProps = {
+  botUrl: string;
+  onClose: () => void;
+};
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
-      setUser(firebaseUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleCtaClick = () => {
-    router.push(user ? "/admin" : "/register");
+function ShareModal({ botUrl, onClose }: ShareModalProps) {
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(botUrl);
+      alert("Enlace copiado al portapapeles");
+    } catch (error) {
+      console.error("Error copiando el enlace:", error);
+      alert("No se pudo copiar el enlace");
+    }
   };
 
   return (
-    <main className={styles.homeContainer}>
-      {/* Hero */}
-      <section className={styles.heroSection}>
-        <div className={styles.heroContent}>
-          <h1 className={styles.heroHeading}>
-            FICHAGRAM: Control de fichajes y optimización de obras
-          </h1>
-          <p className={styles.heroDescription}>
-            Gestiona fichajes desde Telegram o WhatsApp (Proximamente), controla costes y optimiza presupuestos en tiempo real. La solución preferida por autónomos y empresas.
-          </p>
-          <button className={styles.ctaButton} onClick={handleCtaClick}>
-            {user ? "Accede al Panel de Control" : "Pruébalo Gratis Ahora"}
+    <div className={styles["share-modal-overlay"]}>
+      <div className={styles["share-modal"]}>
+        <h2 className={styles["share-modal-title"]}>Compartir Bot</h2>
+        <p className={styles["share-modal-description"]}>
+          Selecciona la aplicación para compartir el enlace de nuestro bot:
+        </p>
+        <div className={styles["share-modal-buttons"]}>
+          <a
+            href={`https://t.me/share/url?url=${encodeURIComponent(
+              botUrl
+            )}&text=${encodeURIComponent("¡Este es el bot para los fichajes!")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles["share-button"]}
+          >
+            Telegram
+          </a>
+          <a
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+              "¡Este es el bot para los fichajes!\n" + botUrl
+            )}`}
+
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles["share-button"]}
+          >
+            WhatsApp
+          </a>
+          <button onClick={handleCopyLink} className={styles["share-button"]}>
+            Copiar Enlace
           </button>
         </div>
-        <div className={styles.heroImage}>
-          <Image
-            src="/images/bot-image.svg"
-            alt="Gestión inteligente con FICHAGRAM"
-            width={700}
-            height={500}
-            quality={100}
-            priority
-            draggable={false} // Evita arrastrar la imagen
-            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
-          />
-        </div>
-      </section>
-
-      {/* Feature 1 */}
-      <section className={styles.featureSection}>
-        <div className={styles.featureImage}>
-          <Image
-            src="/images/feature-automation.svg"
-            alt="Fichaje móvil rápido con Telegram y WhatsApp"
-            width={600}
-            height={450}
-            draggable={false} // Evita arrastrar la imagen
-            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
-          />
-        </div>
-        <div className={styles.featureContent}>
-          <h2 className={styles.featureHeading}>Fichajes rápidos desde el móvil</h2>
-          <p className={styles.featureDescription}>
-            Simplifica el registro de horarios desde cualquier lugar. Evita errores, olvídate del papeleo y asegúrate de cumplir con la legislación vigente.
-          </p>
-        </div>
-      </section>
-
-      {/* Feature 2 */}
-      <section className={styles.featureSectionReverse}>
-        <div className={styles.featureImage}>
-          <Image
-            src="/images/feature-integration.svg"
-            alt="Gestión centralizada de proyectos"
-            width={600}
-            height={450}
-            draggable={false} // Evita arrastrar la imagen
-            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
-          />
-        </div>
-
-        <div className={styles.featureContent}>
-          <h2 className={styles.featureHeading}>Gestión integrada de proyectos y empleados</h2>
-          <p className={styles.featureDescription}>
-            Centraliza información clave de todas tus obras en un solo lugar. Administra equipos, calcula costes precisos y mejora la rentabilidad de cada proyecto.
-          </p>
-        </div>
-      </section>
-
-      {/* Feature 3 */}
-      <section className={styles.featureSection}>
-        <div className={styles.featureImage}>
-          <Image
-            src="/images/feature-analytics.svg"
-            alt="Análisis en tiempo real con FICHAGRAM"
-            width={600}
-            height={450}
-            draggable={false} // Evita arrastrar la imagen
-            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
-          />
-        </div>
-        <div className={styles.featureContent}>
-          <h2 className={styles.featureHeading}>Analítica precisa para decisiones inteligentes</h2>
-          <p className={styles.featureDescription}>
-            Visualiza informes detallados en tiempo real. Identifica desviaciones, optimiza tiempos, reduce costes y aumenta la competitividad de tu negocio.
-          </p>
-        </div>
-      </section>
-
-      {/* CTA Final */}
-      <section className={styles.ctaSection}>
-        <h2 className={styles.ctaHeading}>
-          Convierte el control del tiempo en tu ventaja competitiva
-        </h2>
-        <p className={styles.ctaDescription}>
-          Únete a los negocios inteligentes que optimizan su gestión diaria con FICHAGRAM. Empieza hoy mismo, ¡sin compromiso!
-        </p>
-        <button className={styles.ctaButton} onClick={handleCtaClick}>
-          {user ? "Ir al Panel" : "Regístrate Gratis"}
+        <button onClick={onClose} className={styles["share-modal-close"]}>
+          Cerrar
         </button>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
+
+const AdminPage = () => {
+  const [companyName, setCompanyName] = useState<string>("");
+  const botUrl = "https://t.me/RegistroJornada_bot"; // Enlace del bot
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  useEffect(() => {
+    async function fetchCompanyName() {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      
+      try {
+        const usersRef = collection(db, "Users");
+        const q = query(usersRef, where("uid", "==", currentUser.uid));
+        const querySnap = await getDocs(q);
+        if (!querySnap.empty) {
+          const userDoc = querySnap.docs[0];
+          const userData = userDoc.data();
+          const empresaId = userData.empresaId as string;
+          const empresaRef = doc(db, "Empresas", empresaId);
+          const empresaSnap = await getDoc(empresaRef);
+          if (empresaSnap.exists()) {
+            const empresaData = empresaSnap.data();
+            setCompanyName(empresaData.nombre || "");
+          }
+        }
+      } catch (error) {
+        console.error("[AdminPage] Error al cargar nombre de la empresa:", error);
+      }
+    }
+    fetchCompanyName();
+  }, []);
+
+  return (
+    <main className={styles["admin-page-container"]}>
+      <h1 className={styles["admin-page-title"]}>Panel de Administración</h1>
+      <p className={styles["admin-page-welcome"]}>
+        Bienvenido, {companyName ? companyName : auth.currentUser?.email || "Administrador"}.
+      </p>
+      {/* Sección para compartir el enlace del bot */}
+      <section className={styles["admin-page-share-container"]}>
+        {/* Contenedor izquierdo: Imagen del bot */}
+        <div className={styles["admin-page-share-image"]}>
+          <Image
+            src="/images/bot-image.svg"
+            alt="Bot"
+            width={100} // Ajusta el tamaño según tu necesidad
+            height={100} // Ajusta el tamaño según tu necesidad
+            className={styles["bot-image"]}
+            draggable={false} // Evita que la imagen se arrastre
+            onContextMenu={(e) => e.preventDefault()} // Bloquea clic derecho
+          />
+        </div>
+        {/* Contenedor derecho: Texto y botón */}
+        <div className={styles["admin-page-share-content"]}>
+          <h3 className={styles["admin-page-share-title"]}>
+            Bot para enviar a tus empleados
+          </h3>
+          <p>Recuerda que deben tener previamente la app de Telegram descargada</p>
+          <button
+            onClick={() => setShowShareModal(true)}
+            className={styles["admin-page-share-trigger"]}
+          >
+            Compartir Enlace
+          </button>
+        </div>
+      </section>
+
+      {/* Modal para compartir el enlace */}
+      {showShareModal && (
+        <ShareModal botUrl={botUrl} onClose={() => setShowShareModal(false)} />
+      )}
+      <section className={styles["admin-page-info"]}>
+        <h2 className={styles["admin-page-subtitle"]}>Herramientas del Panel</h2>
+        <ul className={styles["admin-page-list"]}>
+          <li>Gestión de Empresas</li>
+          <li>Administración de Empleados</li>
+          <li>Control de Fichajes</li>
+          <li>Visualización de Reportes</li>
+        </ul>
+        <p className={styles["admin-page-description"]}>
+          En este panel encontrarás herramientas para gestionar tu empresa, administrar usuarios, configurar planes y monitorizar la actividad de tus proyectos. Utiliza el menú lateral para navegar entre las secciones.
+        </p>
+      </section>
+
+    </main>
+  );
+};
+
+export default AdminPage;

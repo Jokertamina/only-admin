@@ -41,7 +41,7 @@
 .fichajes-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
 }
 
 /* CONTENEDOR RESPONSIVO PARA TABLAS */
@@ -59,7 +59,7 @@
 }
 
 .fichajes-table-head-row {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
 }
 
 .fichajes-table-head {
@@ -142,7 +142,7 @@
 }
 
 .obra-table th {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   padding: 0.5rem;
   border: 1px solid #ddd;
   color: #fff;
@@ -202,7 +202,7 @@
 .filter-group input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
 }
 
 /* Estilos para mensajes de error/validación */

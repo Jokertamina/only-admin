@@ -14,8 +14,8 @@ import {
   DocumentData,
   Timestamp
 } from "firebase/firestore";
-import { auth, db } from "../../../lib/firebaseConfig";
-import styles from "../../styles/ObrasPage.module.css";
+import { auth, db } from "../../lib/firebaseConfig";
+import styles from "../styles/ObrasPage.module.css";
 
 interface Obra {
   id?: string;

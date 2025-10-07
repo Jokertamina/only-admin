@@ -10,7 +10,7 @@ export default function PaymentSuccess() {
       <p className={styles.message}>
         Gracias por tu compra. Tu plan ha sido activado correctamente.
       </p>
-      <Link href="/admin" className={styles.link}>
+      <Link href="/" className={styles.link}>
         Ir al Panel de Administración
       </Link>
     </div>

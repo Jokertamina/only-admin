@@ -14,8 +14,8 @@ import {
   DocumentData,
   Timestamp
 } from "firebase/firestore";
-import { auth, db } from "../../../lib/firebaseConfig";
-import styles from "../../styles/EmpleadosPage.module.css";
+import { auth, db } from "../../lib/firebaseConfig";
+import styles from "../styles/EmpleadosPage.module.css";
 
 interface Empleado {
   id?: string;

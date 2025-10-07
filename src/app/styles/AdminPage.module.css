@@ -118,19 +118,21 @@
 
 
 .admin-page-share-trigger:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 
 .admin-page-share-trigger{
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 15px rgba(29, 161, 242, 0.25);
 }
 
 /* Estilos para el modal de compartir */
@@ -177,19 +179,21 @@
 }
 
 .share-button {
-  background-color: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 15px rgba(29, 161, 242, 0.25);
 }
 
 .share-button:hover {
-  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 161, 242, 0.35);
 }
 
 .share-modal-close {

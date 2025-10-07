@@ -29,7 +29,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/admin");
+      router.push("/");
       // Si la redirección falla, refrescamos la página tras 3 segundos
       setTimeout(() => {
         router.refresh();
