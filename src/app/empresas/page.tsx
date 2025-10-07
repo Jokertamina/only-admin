@@ -1,7 +1,7 @@
 "use client"; // Indica que este componente usa hooks en Next.js 13
 
 import { useEffect, useState } from "react";
-import app, { auth, db } from "../../../lib/firebaseConfig"; 
+import app, { auth, db } from "../../lib/firebaseConfig"; 
 import {
   collection,
   query,
@@ -12,7 +12,7 @@ import {
   addDoc,
   updateDoc,
 } from "firebase/firestore";
-import styles from "../../styles/EmpresasPage.module.css";
+import styles from "../styles/EmpresasPage.module.css";
 
 // Importamos funciones de Firebase Functions (SDK de cliente)
 import { getFunctions, httpsCallable } from "firebase/functions";
